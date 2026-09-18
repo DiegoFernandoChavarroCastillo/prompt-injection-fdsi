@@ -1,8 +1,8 @@
 # Valores para la Tabla 6 (Configuración del entorno experimental)
 
-Generado durante la sesión autónoma del 18-sep-2026. Sustituye los `[placeholder]`
-que tiene hoy `main.tex` en el entorno `tab:entorno`. **No se aplicó al artículo**:
-la prohibición 4 de las instrucciones de la noche impide tocar `main.tex`.
+Generado durante la sesión de trabajo autónomo del 18-sep-2026 para sustituir los
+`[placeholder]` del entorno `tab:entorno`. **Ya aplicados** a `main.tex` en el commit
+`b08bb04`; este archivo se conserva como referencia de dónde salió cada valor.
 
 | Parámetro | Valor a poner | Nota para el texto |
 |---|---|---|

@@ -217,7 +217,7 @@ def test_las_revisiones_pendientes_se_reportan(corpus):
 
 
 def test_la_etiqueta_manual_manda_sobre_la_automatica():
-    """Cuando Diego revisa un caso, su etiqueta sustituye a la del clasificador."""
+    """Cuando una persona revisa un caso, su etiqueta sustituye a la automática."""
     filas = [interaccion(condition="A", label_auto="REVISION_MANUAL", label_manual="EXITO_TOTAL")]
     m = compute_metrics(filas)
     assert m["asr"]["A"]["global"]["estricto"]["asr"] == pytest.approx(1.0)
