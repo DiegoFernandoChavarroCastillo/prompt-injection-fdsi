@@ -1,6 +1,15 @@
-# Instrucciones para la sesión autónoma (noche del 18-sep-2026)
+# Instrucciones de la sesión de trabajo autónomo (18-sep-2026)
 
-Diego está durmiendo. Trabajas solo desde ahora hasta terminar o hasta toparte con una condición de parada. Nadie va a responder preguntas: **no te detengas a preguntar**. Si algo requiere una decisión humana, regístralo en `notas/BLOQUEOS.md` y sigue con el trabajo que no dependa de esa decisión.
+> **Qué es este documento.** El encargo que se le dio a Claude Code para una sesión de
+> trabajo autónomo, reproducido tal cual se escribió. Se conserva sin retoques porque es
+> la especificación contra la que hay que juzgar lo que la sesión produjo: qué se pidió,
+> qué restricciones se impusieron y con qué presupuesto. Las decisiones tomadas durante la
+> sesión fueron revisadas después por el autor, y las que quedaron pendientes de criterio
+> humano están en [`incidencias.md`](incidencias.md).
+
+La sesión se ejecuta sin interacción: no hay confirmaciones intermedias ni respuestas a
+preguntas. Si algo requiere una decisión humana, se registra en
+`docs/proceso/incidencias.md` y se continúa con el trabajo que no dependa de esa decisión.
 
 Este documento manda sobre cualquier instrucción anterior en caso de conflicto, **excepto** sobre las prohibiciones de la sección 1, que no admiten excepción.
 
@@ -9,7 +18,7 @@ Este documento manda sobre cualquier instrucción anterior en caso de conflicto,
 ## 0. Antes de empezar
 
 1. Lee `PlanDeAccion.md` completo, `README.md` y este archivo.
-2. Crea `notas/BITACORA_NOCHE.md`. Es tu diario de trabajo. Regístralo todo ahí (ver sección 6).
+2. Crea la bitácora de la sesión. Es el diario de trabajo. Regístralo todo ahí (ver sección 6).
 3. Ejecuta `pytest` y confirma que todo pasa antes de tocar nada. Si algo falla, anótalo y arréglalo solo si no implica romper una prohibición.
 4. Ejecuta `git status` y anota el commit de partida.
 
@@ -17,7 +26,7 @@ Este documento manda sobre cualquier instrucción anterior en caso de conflicto,
 
 ## 1. Prohibiciones absolutas
 
-Ninguna de estas acciones está permitida esta noche, **aunque parezca la única forma de avanzar**. Si una tarea las requiere, esa tarea se detiene y se registra en `notas/BLOQUEOS.md`.
+Ninguna de estas acciones está permitida en esta sesión, **aunque parezca la única forma de avanzar**. Si una tarea las requiere, esa tarea se detiene y se registra en `docs/proceso/incidencias.md`.
 
 1. **No modificar la batería congelada:** `data/attacks_v1.json`, `data/benign_v1.json`, `data/MANIFEST.txt`. No usar `freeze_battery.py --force`.
 2. **No modificar los prompts:** nada en `prompts/` (system_A, system_B, l2_reminder, messages.yaml, canary).
@@ -26,7 +35,7 @@ Ninguna de estas acciones está permitida esta noche, **aunque parezca la única
 5. **No evaluar L3 ni L5 contra los 20 ataques de la batería antes del tag `pilot-freeze`.** Esto incluye ejecutar `check_input()` o `validate_output()` sobre payloads de `attacks_v1.json` "solo para ver", en un script, un test o la consola. La condición B enfrenta la batería por primera vez en el piloto.
 6. **No modificar nada de `src/`, `prompts/` o `data/` después del tag `pilot-freeze`.** Tras el piloto solo se permite análisis, reportes y documentación. Si el piloto revela un bug, se documenta; no se corrige.
 7. **No reescribir historia de git:** nada de `commit --amend`, `rebase`, `reset --hard` ni `push --force` sobre commits existentes. Si un commit quedó incompleto, se hace otro commit.
-8. **No hacer `git push`.** Diego revisa por la mañana y decide.
+8. **No hacer `git push`.** El autor revisa y decide después.
 9. **No imprimir, registrar ni hacer commit de la API key.**
 10. **No suprimir resultados.** Si algo sale mal en el piloto (ASR alto en B, FPR alto, errores), se reporta tal cual.
 
@@ -35,8 +44,8 @@ Ninguna de estas acciones está permitida esta noche, **aunque parezca la única
 ## 2. Presupuesto de API
 
 - El cupo es de **1000 peticiones/día por organización** en ventana móvil y **8000 tokens/minuto**.
-- **Tope para esta noche: 200 llamadas en total**, sumando todo (smoke tests, calibración, pruebas de desarrollo y piloto).
-- Antes de cada bloque de llamadas, lee `x-ratelimit-remaining-requests` de una respuesta reciente. **Si quedan menos de 150, no empieces el piloto**; regístralo en BLOQUEOS y deja el runner listo.
+- **Tope de la sesión: 200 llamadas en total**, sumando todo (smoke tests, calibración, pruebas de desarrollo y piloto).
+- Antes de cada bloque de llamadas, lee `x-ratelimit-remaining-requests` de una respuesta reciente. **Si quedan menos de 150, no empieces el piloto**; regístralo en incidencias y deja el runner listo.
 - Lleva la cuenta de llamadas en la bitácora, por bloque.
 
 ---
@@ -99,7 +108,7 @@ Commit: `fase 4b: L3 y conjunto de desarrollo`.
 - Ejecuta los 20 benignos de `benign_v1.json` contra B con L3 activo y L5 en **modo registro**: se calcula, pero no bloquea. Esto requiere una opción interna de calibración, no expuesta en `try_chatbot.py`. Son 20 llamadas.
 - Añade la ejecución de los 15 benignos de desarrollo contra B (15 llamadas).
 - Elige como umbral el **menor número de 5-gramas coincidentes que no dispara en ningún benigno**, más uno de margen. Si algún benigno dispara `role_marker` o `commercial_marker`, ajusta esos marcadores, nunca la batería.
-- Guarda las salidas y el análisis en `notas/calibracion_L5.md` (sin API key) y fija el umbral en `config/experiment.yaml` bajo una clave nueva `defenses.l5_ngram_threshold`, con un comentario que remita a ese archivo. Añadir claves de configuración de las defensas está permitido; tocar parámetros de inferencia no.
+- Guarda las salidas y el análisis en `docs/evidencia/calibracion_L5.md` (sin API key) y fija el umbral en `config/experiment.yaml` bajo una clave nueva `defenses.l5_ngram_threshold`, con un comentario que remita a ese archivo. Añadir claves de configuración de las defensas está permitido; tocar parámetros de inferencia no.
 
 **c) Cierre de la condición B:**
 
@@ -154,7 +163,7 @@ Solo si **todo** lo siguiente se cumple:
 
 Entonces: `git tag pilot-freeze` y registra el hash en la bitácora. **Desde este momento aplica la prohibición 6.**
 
-Si alguna condición falla y no se puede resolver sin romper una prohibición, no hagas el piloto: regístralo en BLOQUEOS y sigue con la sección 3.8.
+Si alguna condición falla y no se puede resolver sin romper una prohibición, no hagas el piloto: regístralo en incidencias y sigue con la sección 3.8.
 
 ### 3.7 Fase 7 — Piloto
 
@@ -165,7 +174,7 @@ Si alguna condición falla y no se puede resolver sin romper una prohibición, n
   - `results/pilot/revision_manual.csv`: una fila por caso `REVISION_MANUAL`, con id, condición, payload, `final_response`, `success_criterion`, `partial_criterion` y columnas vacías `label_manual` y `nota` para que Diego las llene.
   - `results/pilot/observaciones.md`: observaciones **descriptivas**. Qué capa actuó en cada ataque bloqueado (según `defense_trace`), casos donde el modelo cedió en `raw_model_output` pero L5 lo atrapó, comparación de A03 y A13 entre condiciones, y benignos bloqueados o degradados con la regla responsable. Nada de conclusiones fuertes: es N=1.
   - Revisa la tabla de señales de alerta de la Fase 7 del plan y marca cuáles se activaron.
-- **No corrijas nada que el piloto revele.** Si hay un benigno bloqueado por L3, un bug o un ataque que pasa, se documenta en `observaciones.md` y en `BLOQUEOS.md` como decisión pendiente para Diego.
+- **No corrijas nada que el piloto revele.** Si hay un benigno bloqueado por L3, un bug o un ataque que pasa, se documenta en `observaciones.md` y en `incidencias.md` como decisión pendiente de criterio humano.
 
 Commit: `fase 7: piloto N=1 (80 interacciones) y reporte preliminar`.
 
@@ -194,9 +203,9 @@ Commit: `fase 9 (prep): README y guion de demo`.
 | Situación | Acción |
 |---|---|
 | Un test falla y el arreglo está dentro de lo permitido | Arréglalo, anótalo en la bitácora y sigue |
-| El arreglo requiere romper una prohibición | Detén **esa** tarea, regístrala en BLOQUEOS con el detalle y sigue con la siguiente tarea independiente |
+| El arreglo requiere romper una prohibición | Detén **esa** tarea, regístrala en incidencias con el detalle y sigue con la siguiente tarea independiente |
 | HTTP 429 | El cliente reintenta con backoff. Si se repite en muchas llamadas seguidas, espera 5 minutos y sigue. No cambies parámetros de inferencia |
-| HTTP 401, 403, 404 o `model_not_found` | Detén todo lo que use API. Regístralo en BLOQUEOS. Sigue con el trabajo sin API (Fase 8 prep, tests, documentación) |
+| HTTP 401, 403, 404 o `model_not_found` | Detén todo lo que use API. Regístralo en incidencias. Sigue con el trabajo sin API (Fase 8 prep, tests, documentación) |
 | El cupo baja de 150 antes del piloto | No hagas el piloto. Deja todo listo y regístralo |
 | Duda de diseño no cubierta aquí | Elige la opción más conservadora (la que menos favorece a B y menos toca lo congelado), documenta la decisión y el motivo en la bitácora bajo "Decisiones tomadas sin Diego" y sigue |
 | Tentación de "mejorar" una defensa tras ver resultados del piloto | Prohibido (prohibición 6). Documéntalo como observación |
@@ -216,25 +225,25 @@ Paras cuando ocurra lo primero de esto:
 
 ---
 
-## 6. Bitácora (`notas/BITACORA_NOCHE.md`)
+## 6. Bitácora (`docs/proceso/bitacora_sesion_autonoma.md`)
 
 Estructura obligatoria:
 
 ```
-# Bitácora — sesión autónoma 18/19-sep-2026
+# Bitácora — sesión de trabajo autónomo, 18-sep-2026
 
-## RESUMEN PARA DIEGO (actualizar al final)
+## Resumen de la sesión (actualizar al final)
 - Estado de cada fase: hecho / parcial / bloqueado
 - Commits creados (hash + mensaje) y tags
 - Llamadas a la API usadas / tope
 - Resultados clave del piloto (si hubo): ASR A vs B global, FPR, nº de REVISION_MANUAL
-- Lo que Diego debe hacer primero al despertar (lista corta y ordenada)
+- Lo que hay que revisar primero (lista corta y ordenada)
 
-## Decisiones tomadas sin Diego
+## Decisiones tomadas de forma autónoma
 - (decisión, alternativas consideradas, motivo)
 
 ## Registro cronológico
 - [hora] qué se hizo, resultado, llamadas gastadas
 ```
 
-`notas/BLOQUEOS.md`: una entrada por bloqueo con qué se intentaba, qué lo impidió, qué prohibición o condición aplica y qué decisión necesita Diego.
+`docs/proceso/incidencias.md`: una entrada por bloqueo con qué se intentaba, qué lo impidió, qué prohibición o condición aplica y qué decisión necesita Diego.

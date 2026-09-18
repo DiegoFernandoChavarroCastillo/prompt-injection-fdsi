@@ -104,7 +104,7 @@ API y por tanto no esperaron, y eso arrastra la media hacia abajo.
 **No se ha corregido** (prohibición 6: tras `pilot-freeze` solo se
 documenta). El arreglo, para después de que Diego lo decida, es mover el
 espaciado fuera de `respond()` —al runner, entre interacciones— o restar
-el tiempo dormido. Queda anotado en `notas/BLOQUEOS.md`.
+el tiempo dormido. Queda anotado en `docs/proceso/incidencias.md`.
 
 ## Pendiente de decisión
 
@@ -112,4 +112,4 @@ el tiempo dormido. Queda anotado en `notas/BLOQUEOS.md`.
   cotas mínima y máxima de `metricas.md`.
 - Nada de lo que revele este piloto se ha corregido: la prohibición 6 de
   la sesión autónoma lo impide tras el tag `pilot-freeze`. Lo que haya que
-  arreglar queda documentado aquí y en `notas/BLOQUEOS.md`.
+  arreglar queda documentado aquí y en `docs/proceso/incidencias.md`.

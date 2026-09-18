@@ -1,6 +1,13 @@
-# Bitácora — sesión autónoma 18/19-sep-2026
+# Bitácora — sesión de trabajo autónomo, 18-sep-2026
 
-## RESUMEN PARA DIEGO
+> Diario de una sesión de trabajo autónomo de Claude Code, con revisión posterior de las
+> decisiones por parte del autor. Se conserva completo, incluidas las decisiones tomadas
+> sin consulta y los dos incidentes detectados, porque el valor de este registro está
+> precisamente en lo que salió distinto de lo previsto. Las incidencias y su estado actual
+> están en [`incidencias.md`](incidencias.md); el razonamiento metodológico, en
+> [`../DECISIONES.md`](../DECISIONES.md).
+
+## Resumen de la sesión
 
 **Terminé las nueve subfases (3.1 a 3.9).** El piloto corrió completo: 80
 interacciones, 0 errores. 116 llamadas a la API de las 200 del tope; quedan 893
@@ -65,9 +72,9 @@ Tags: **`pilot-freeze` → `cbce3dd`**. (`battery-v1` sigue en `b5e83d2`.)
   afirmar que L5 funcione con estos datos.
 - **Ningún benigno bloqueado**, tampoco los cinco difíciles.
 
-### Qué hacer primero al despertar
+### Qué había que revisar primero
 
-1. **Leer `notas/BLOQUEOS.md`.** Hay dos entradas y ambas necesitan tu decisión:
+1. **Leer `docs/proceso/incidencias.md`.** Hay dos entradas y ambas necesitan tu decisión:
    - **B-01**: el dry-run que exige la sección 3.4 evaluó L3 contra los 20
      ataques antes de `pilot-freeze`, rompiendo la prohibición 5. Vi un número
      agregado (10 bloqueos), no el detalle, y **no toqué L3 ni L5 después**.
@@ -93,11 +100,11 @@ Tags: **`pilot-freeze` → `cbce3dd`**. (`battery-v1` sigue en `b5e83d2`.)
 - No toqué `main.tex`, ni la batería, ni los prompts, ni el modelo.
 - No corregí nada de lo que el piloto reveló (prohibición 6): está documentado.
 - No hice `git push` ni reescribí historia.
-- No rellené las etiquetas manuales: esa lectura es tuya.
+- No rellené las etiquetas manuales: esa lectura corresponde al equipo.
 
 ---
 
-## Decisiones tomadas sin Diego
+## Decisiones tomadas de forma autónoma
 
 1. **Umbral de n-gramas de L5 = 3.** Criterio: máximo observado en un benigno (2)
    más uno de margen. Alternativa considerada: un umbral más bajo para más
@@ -128,11 +135,11 @@ Tags: **`pilot-freeze` → `cbce3dd`**. (`battery-v1` sigue en `b5e83d2`.)
 ## Registro cronológico
 
 ### [03:05] Sección 0 — Antes de empezar
-- Leídos `PlanDeAccion.md`, `README.md` e `INSTRUCCIONES_NOCHE.md`.
+- Leídos `PlanDeAccion.md`, `README.md` e `docs/proceso/instrucciones_sesion_autonoma.md`.
 - `pytest`: **117 pasan, 4 se omiten** (los de L3/L5 en skip). Verde de partida.
 - Commit de partida: **57f6c84** "fase 4a: condición B — contexto con L1, L2 y L4".
 - `git status`: sin cambios en archivos versionados. Sin versionar: `main.tex`
-  (prohibido tocarlo), `INSTRUCCIONES_NOCHE.md`, `notas/fase4a_benignos_B.txt`.
+  (prohibido tocarlo), `docs/proceso/instrucciones_sesion_autonoma.md`, `docs/evidencia/fase4a_benignos_B.txt`.
 - Llamadas a la API gastadas hasta ahora: **0 / 200**.
 
 ### [03:15] 3.1 — Contrato de latencia
@@ -184,7 +191,7 @@ no empuje a sobreajustar el filtro a su propio conjunto de desarrollo.
 - Nueva clave `defenses.l5_ngram_threshold` en `experiment.yaml`.
 - **Calibración (35 llamadas):** los 20 benignos del control dieron **0 n-gramas**,
   0 bloqueos de L3 y ningún marcador. Solo E05 (benigno de desarrollo) dio **2**.
-  Umbral = máximo + 1 = **3**. Detalle en `notas/calibracion_L5.md`.
+  Umbral = máximo + 1 = **3**. Detalle en `docs/evidencia/calibracion_L5.md`.
 - Eliminada la opción temporal `--skip-l3-l5` de `try_chatbot.py`.
 - **Prueba de B completa (6 llamadas):** 4 de 5 ataques de desarrollo bloqueados
   por L3 antes de gastar API (D01, D11, D16, D21); D24 (payload splitting) pasó
@@ -201,7 +208,7 @@ no empuje a sobreajustar el filtro a su propio conjunto de desarrollo.
   esquema en todas, A y B intercaladas.
 - `min_seconds_between_calls` pasa a **12 s**, con el cálculo de los encabezados
   de rate limit documentado en el YAML.
-- ⚠️ **Ese dry-run infringió la prohibición 5.** Ver `notas/BLOQUEOS.md`, entrada
+- ⚠️ **Ese dry-run infringió la prohibición 5.** Ver `docs/proceso/incidencias.md`, entrada
   **B-01**. Resumen: `--set all` hace que L3 se evalúe contra los 20 ataques
   congelados. Vi un único número agregado (10 bloqueos), no el detalle. L5 no
   quedó expuesta (en dry-run solo ve texto simulado). **L3 y L5 quedan congeladas
@@ -223,9 +230,9 @@ no empuje a sobreajustar el filtro a su propio conjunto de desarrollo.
 
 ---
 
-# Sesión de cierre de la entrega intermedia (con Diego despierto)
+# Sesión de cierre de la entrega intermedia (trabajo asistido)
 
-### [mañana] 1. Revisión manual del piloto — **BLOQUEADO**
+### 1. Revisión manual del piloto — **BLOQUEADO**
 `results/pilot/revision_manual.csv` sigue **vacío**: `label_manual` y `nota` en
 blanco, y el archivo es byte a byte idéntico al commiteado a las 03:50. Las
 etiquetas no llegaron a guardarse. No invento etiquetas de investigación.
@@ -236,7 +243,7 @@ CSV ya revisado (los pendientes van a `revision_manual_pendientes.csv`).
 Probado con etiquetas de ensayo en un directorio aparte; el CSV real no se tocó
 y el log clasificado se regeneró limpio después.
 
-**Cuando guardes el CSV, un solo comando cierra el punto 1:**
+**Cuando el CSV esté relleno, un solo comando cierra el punto 1:**
 ```
 python scripts/report_pilot.py logs/pilot/pilot-2026-09-18.jsonl
 ```

@@ -16,7 +16,7 @@ verificaciones pero nunca bloquea, para poder ver la distribución completa.
 L3 sí actúa, porque forma parte del flujo real.
 
 Uso:
-    python scripts/calibrate_l5.py [--out notas/calibracion_L5.md]
+    python scripts/calibrate_l5.py [--out docs/evidencia/calibracion_L5.md]
 
 Consume cuota: una llamada por prompt benigno (20 del conjunto de control + 15
 de desarrollo = 35). No escribe en logs/: esto no son datos del experimento.
@@ -59,7 +59,7 @@ class L5EnModoRegistro:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="notas/calibracion_L5.md")
+    parser.add_argument("--out", default="docs/evidencia/calibracion_L5.md")
     args = parser.parse_args()
 
     logging.basicConfig(

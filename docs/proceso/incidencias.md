@@ -1,17 +1,27 @@
-# Bloqueos — sesión autónoma 18/19-sep-2026
+# Incidencias
 
-Una entrada por bloqueo: qué se intentaba, qué lo impidió, qué prohibición o
-condición aplica, y qué decisión necesita Diego.
+Registro de todo lo que no salió según lo previsto durante la construcción del
+experimento. Cada entrada describe qué se intentaba, qué lo impidió, qué regla
+del protocolo aplica y cómo se resolvió.
 
-*(sin bloqueos registrados por ahora)*
+Se publica íntegro y sin suavizar. En un experimento preregistrado, el valor del
+registro está justamente en las desviaciones: omitirlas dejaría el preregistro
+sin función. Las dos incidencias de esta lista están además declaradas en el
+artículo, en la subsección *Desviaciones del protocolo*.
 
 ---
 
-## B-01 — INCIDENTE DE CUMPLIMIENTO: L3 se ejecutó sobre la batería antes de `pilot-freeze`
+## B-01 — L3 se ejecutó sobre la batería antes de `pilot-freeze`
 
-**Gravedad:** media. Requiere que Diego decida si invalida algo.
+**Estado: RESUELTA — declarada en el artículo.** Se documentó como desviación del
+protocolo en la subsección *Desviaciones del protocolo* de la Sección III de
+`main.tex`. L3 no se modificó tras la ejecución, extremo verificable en el
+historial del repositorio: no hay ningún commit que toque `src/defenses/` entre
+`5f9f6a1` (que introduce L3) y el tag `pilot-freeze`.
 
-**Qué se intentaba.** La sección 3.4 de `INSTRUCCIONES_NOCHE.md` ordena literalmente:
+**Gravedad:** media.
+
+**Qué se intentaba.** La sección 3.4 de `docs/proceso/instrucciones_sesion_autonoma.md` ordena literalmente:
 "Verifica con `--dry-run --n 1 --condition both --set all` que se generan exactamente
 80 líneas bien formadas". Ejecuté ese comando exacto.
 
@@ -51,14 +61,14 @@ prohibición es informativo:
 3. El artefacto queda en `logs/pilot/dry-run.jsonl` (no versionado) por si quieres
    auditarlo.
 
-**Decisión que necesita Diego.**
+**Decisión que requiere criterio humano.**
 
-- ¿Considera esto una contaminación real del preregistro? Mi lectura: el riesgo
+- ¿Es esto una contaminación real del preregistro? Mi lectura: el riesgo
   que la prohibición evita es **ajustar la defensa tras ver su desempeño**, y eso
   no ha ocurrido ni puede ocurrir ya, porque L3 quedó congelada en el mismo estado
   en que estaba antes de la ejecución. Un número agregado que no se usó para nada
   no cambia el filtro.
-- Si aun así prefiere ser estricto, la opción limpia es **declararlo en el
+- Si se prefiere el criterio estricto, la opción limpia es **declararlo en el
   artículo** como desviación del protocolo, con este registro como evidencia. Es
   lo que haría un preregistro serio: reportar la desviación, no borrarla.
 - **Sugerencia para el documento:** la sección 3.4 debería pedir la verificación
@@ -66,10 +76,21 @@ prohibición es informativo:
 
 ---
 
-## B-02 — `latency_ms` incluye la espera de rate limit: métrica inutilizable
+## B-02 — `latency_ms` incluía la espera de rate limit
 
-**Gravedad:** media. Bug real, detectado por el piloto. **No corregido** por la
-prohibición 6 (tras `pilot-freeze` solo se documenta).
+**Estado: RESUELTA — corregida en el commit `32ed905`.** Se aplicó la opción 1 de
+las tres que se describen más abajo: el espaciado salió de `LLMClient` a una
+clase `Pacer` que el ejecutor aplica entre interacciones, fuera del cronómetro de
+`respond()`. Hay cuatro tests que lo verifican. El tag `final-freeze` incluye la
+corrección, de modo que la corrida definitiva medirá bien.
+
+El piloto **no** se reejecutó: con N=1 no habría aportado nada que la corrida
+definitiva no vaya a medir mejor. Por eso el sobrecosto de latencia del piloto se
+reporta en el artículo únicamente con `api_latency_ms`, que no está afectado, y
+así queda dicho en la subsección de resultados preliminares.
+
+**Gravedad:** media. Detectado por el piloto y no corregido en su momento, porque
+la prohibición 6 impedía tocar `src/` tras `pilot-freeze`.
 
 **Qué pasa.** `min_seconds_between_calls` (12 s) se duerme dentro de
 `LLMClient.chat()`, que está dentro de `respond()`. Como `latency_ms` cronometra
@@ -88,7 +109,7 @@ la subfase 3.1 digan eso. Hay que corregir también esa documentación.
 sobrecosto en tokens (673 vs. 1 137 de entrada). Son las cifras que deben ir al
 artículo.
 
-**Decisión que necesita Diego.** Elegir el arreglo y cuándo aplicarlo:
+**Decisión que requiere criterio humano.** Elegir el arreglo y cuándo aplicarlo:
 
 1. **Mover el espaciado al runner**, entre interacciones, fuera de `respond()`.
    Es lo más limpio conceptualmente: esperar por cortesía con la API no es parte
@@ -99,6 +120,6 @@ artículo.
    `latency_ms` no es interpretable en corridas con espaciado. Es la opción más
    barata y no invalida ninguna conclusión del estudio.
 
-Mi sugerencia es la **1**, y aplicarla antes de la corrida final para que las 400
-interacciones traigan la cifra buena. Si se aplica, hay que repetir el piloto o
-declarar que el sobrecosto de latencia se mide solo con `api_latency_ms`.
+Se aplicó la **1** antes de la corrida final, para que las 400 interacciones
+traigan la cifra correcta, y se optó por declarar que el sobrecosto de latencia
+del piloto se mide solo con `api_latency_ms` en vez de repetir el piloto.

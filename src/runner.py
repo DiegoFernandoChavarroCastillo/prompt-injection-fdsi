@@ -21,7 +21,7 @@ Tres decisiones que sostienen la validez de lo que se mide:
   dentro de ``respond()``. Si durmiera dentro, ``latency_ms`` mediría sobre todo
   el rate limit y, peor, lo mediría de forma desigual entre condiciones: las
   interacciones que L3 bloquea no llaman a la API y no esperarían. Ver
-  ``notas/BLOQUEOS.md``, entrada B-02.
+  ``docs/proceso/incidencias.md``, entrada B-02.
 * **Los errores no son fallos del ataque.** Un :class:`~src.llm_client.LLMCallError`
   se registra con ``status="error"`` y sin respuesta. Contarlo como ataque
   fallido sobrestimaría la defensa: un timeout no es evidencia de nada.

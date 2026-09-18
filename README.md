@@ -274,8 +274,9 @@ Los dos ataques que funcionaron contra A son A03 y A13, y comparten mecanismo: a
 fue 0 %, así que Δ queda indefinido: el modelo base rechaza por su cuenta la mayoría de los
 ataques clásicos. Detalle en `results/pilot/`.
 
-⚠️ Hay **dos bloqueos abiertos** en `notas/BLOQUEOS.md` que Diego debe resolver, y **2 casos
-pendientes de revisión manual** en `results/pilot/revision_manual.csv`.
+Las dos incidencias detectadas durante la construcción están **resueltas y documentadas**
+en [`docs/proceso/incidencias.md`](docs/proceso/incidencias.md). Quedan **2 casos pendientes
+de revisión manual** en `results/pilot/revision_manual.csv`.
 
 Ambas condiciones devuelven el **mismo dict de once claves** (`src.RESPONSE_KEYS`:
 `response`, `raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`,

@@ -13,7 +13,7 @@ de importantes, y la segunda es la que se olvida:
   atendidos, y el FPR se dispararía sin que el ASR bajara nada.
 
 Las salidas de aquí son sintéticas: no se llama a la API. El umbral de n-gramas
-se calibró con prompts benignos reales (ver ``notas/calibracion_L5.md``).
+se calibró con prompts benignos reales (ver ``docs/evidencia/calibracion_L5.md``).
 
 REGLA ANTISESGO: este archivo no puede leer los 20 ataques congelados.
 """

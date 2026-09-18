@@ -24,7 +24,7 @@ dormir dentro de ``chat()`` metía la espera dentro de ``respond()``, y
 sobre todo el rate limit en vez del trabajo del chatbot. Con 12 s de espaciado,
 la condición B llegó a parecer más rápida que la A en el piloto del 18-sep-2026,
 porque sus interacciones bloqueadas por L3 no llamaban a la API y no esperaban.
-Ver ``notas/BLOQUEOS.md``, entrada B-02.
+Ver ``docs/proceso/incidencias.md``, entrada B-02.
 
 El proveedor es intercambiable: Groq y Gemini exponen endpoints compatibles con
 OpenAI, así que basta cambiar ``base_url``/``model`` en el YAML (o ``LLM_BASE_URL``

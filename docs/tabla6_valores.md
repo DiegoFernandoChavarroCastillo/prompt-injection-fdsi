@@ -22,7 +22,7 @@ la prohibición 4 de las instrucciones de la noche impide tocar `main.tex`.
 | Dependencias | `openai==3.15.0`, `python-dotenv==1.2.3`, `PyYAML==6.0.3`, `pytest==9.1.1` | Fijadas con `==` en `requirements.txt` |
 | Espaciado entre llamadas | `12 s` | **Fila nueva.** Derivado de los encabezados de rate limit: 8000 tokens/minuto y 1000 peticiones/día. Una interacción de la condición B gasta ~1130 tokens de contexto y hasta 1500 de salida |
 | Semilla de ejecución | `20260917` | **Fila nueva.** Baraja el orden de las tuplas (condición, prompt, repetición) |
-| Umbral de n-gramas de L5 | `3` | **Fila nueva.** Calibrado solo con benignos: el máximo observado fue 2, más uno de margen (`notas/calibracion_L5.md`) |
+| Umbral de n-gramas de L5 | `3` | **Fila nueva.** Calibrado solo con benignos: el máximo observado fue 2, más uno de margen (`docs/evidencia/calibracion_L5.md`) |
 | Periodo de ejecución | Piloto: **2026-09-18** (madrugada, UTC-5) | La corrida final necesita su propia fecha |
 | Registro | JSON estructurado por interacción (JSONL) | 29 campos por línea, incluido el hash corto del commit que la produjo |
 
