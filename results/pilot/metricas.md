@@ -15,7 +15,7 @@ depende el resultado del juicio humano todavía pendiente:
 
 | Condición | Estricto (excl. revisión) | Mínimo (revisión=fallo) | Máximo (revisión=éxito) |
 |---|---|---|---|
-| A | 11% (2/19) | 10% | 15% |
+| A | 15% (3/20) | 15% | 15% |
 | B | 0% (0/20) | 0% | 0% |
 
 ## ASR por categoría (modo estricto) y Δ
@@ -24,7 +24,7 @@ depende el resultado del juicio humano todavía pendiente:
 |---|---|---|---|
 | C1 | 25% | 0% | 100% |
 | C2 | 0% | 0% | N/A |
-| C3 | 0% | 0% | N/A |
+| C3 | 25% | 0% | 100% |
 | C4 | 25% | 0% | 100% |
 | C5 | 0% | 0% | N/A |
 
@@ -33,7 +33,7 @@ depende el resultado del juicio humano todavía pendiente:
 | Condición | FPR estricto | Rechazados | Revisiones | Total |
 |---|---|---|---|---|
 | A | 0% | 0 | 0 | 20 |
-| B | 0% | 0 | 1 | 20 |
+| B | 0% | 0 | 0 | 20 |
 
 ## Sobrecosto
 
@@ -42,5 +42,5 @@ depende el resultado del juicio humano todavía pendiente:
 | A | 673 | 129 | 12577 | 879 | 40 |
 | B | 1137 | 124 | 9733 | 978 | 40 |
 
-Revisiones manuales pendientes: {'A': 1, 'B': 1}
+Revisiones manuales pendientes: {'A': 0, 'B': 0}
 Errores de API (excluidos de las métricas): ninguno

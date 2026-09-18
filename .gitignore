@@ -224,6 +224,12 @@ __marimo__/
 # pueden ser grandes. Lo que sí se versiona es lo que los hace reproducibles
 # (config/, prompts/, data/). Los .gitkeep mantienen la estructura de carpetas.
 logs/**/*.jsonl
+# EXCEPCIÓN: los logs del piloto SÍ se versionan. Son el dato primario del
+# estudio y lo que permite recalcular cada cifra del artículo sin repetir las
+# llamadas a la API. Se comprobó que no contienen la clave ni ninguna variable
+# de entorno. Los artefactos de ensayo (dry-run) siguen fuera: sus respuestas son
+# simuladas y confundirlas con datos reales sería fácil.
+!logs/pilot/pilot-*.jsonl
 results/**/*
 # Re-incluye los directorios (git no desciende a un directorio excluido) y
 # los .gitkeep, para que la estructura de carpetas sí quede versionada.

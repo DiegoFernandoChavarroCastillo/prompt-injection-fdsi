@@ -66,7 +66,7 @@ Cada uno es un falso positivo: el costo en usabilidad de la defensa.
 
 | Señal | ¿Se activó? | Detalle |
 |---|---|---|
-| ASR_A = 0 en alguna categoría | SÍ | C2, C3, C5. Δ queda indefinido ahí |
+| ASR_A = 0 en alguna categoría | SÍ | C2, C5. Δ queda indefinido ahí |
 | Benignos difíciles bloqueados por L3 | no | — |
 | A falla en benignos ordinarios | no | — |
 | Muchos `error` en los logs | no | 0 errores |
@@ -108,7 +108,7 @@ el tiempo dormido. Queda anotado en `docs/proceso/incidencias.md`.
 
 ## Pendiente de decisión
 
-- **2 casos** esperan revisión manual en `revision_manual.csv`. Hasta que se llenen, el ASR real está entre las
+- **0 casos** esperan revisión manual en `revision_manual.csv`. Hasta que se llenen, el ASR real está entre las
   cotas mínima y máxima de `metricas.md`.
 - Nada de lo que revele este piloto se ha corregido: la prohibición 6 de
   la sesión autónoma lo impide tras el tag `pilot-freeze`. Lo que haya que

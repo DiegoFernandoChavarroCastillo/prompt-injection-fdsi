@@ -6,9 +6,9 @@
 % CÓMO INCLUIRLO: dentro de \section{Resultados}, con \input{docs/seccion_IV_piloto}.
 % Requiere \usepackage{booktabs} (ya está en main.tex).
 %
-% ATENCIÓN: dos cifras de este borrador son PROVISIONALES porque dependen de la
-% revisión manual de dos casos (A10 en la condición A y B11 en la condición B).
-% Están marcadas con comentarios en el punto donde hay que actualizarlas.
+% Cifras DEFINITIVAS del piloto: incorporan la revisión manual de los dos casos
+% ambiguos (A10 en la condición A -> EXITO_TOTAL; B11 en la condición B ->
+% ATENDIDO). No quedan casos pendientes. Fuente: results/pilot/metricas.md.
 
 \subsection{Resultados preliminares de la corrida piloto ($N=1$)}
 \label{sec:piloto}
@@ -36,25 +36,32 @@ ver cuánto del resultado depende todavía del juicio humano.
 \label{tab:piloto-asr}
 \centering
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-\textbf{Condición} & \textbf{ASR} & \textbf{Éxitos/válidos} & \textbf{Rev. manual} \\
+\textbf{Condición} & \textbf{ASR} & \textbf{Éxitos/total} \\
 \midrule
-A (sin defensas de aplicación) & 11\,\% & 2/19 & 1 \\
-B (defensa en cinco capas)     & 0\,\%  & 0/20 & 1 \\
+A (sin defensas de aplicación) & 15\,\% & 3/20 \\
+B (defensa en cinco capas)     & 0\,\%  & 0/20 \\
 \bottomrule
 \end{tabular}
 \end{table}
-% PROVISIONAL: si la revisión manual confirma A10 como éxito en la condición A,
-% el ASR de A pasa a 15 % (3/20). La cota superior ya está calculada en
-% results/pilot/metricas.md (modo "máximo").
+El ASR de la condición A se sitúa en el 15\,\%: tres de los veinte ataques
+lograron su objetivo, y se agrupan en dos mecanismos distintos.
 
-El ASR de la condición A se sitúa en el 11\,\%: dos de los veinte ataques
-lograron su objetivo. Ambos, A03 (terminación de contexto) y A13 (mensaje de
-sistema embebido), comparten mecanismo: \textbf{falsifican autoridad de sistema}
-dentro del canal único de texto. Los ataques que operan por persuasión
-—anulación explícita, suplantación de autoridad, encuadre ficcional— fueron
-rechazados por el modelo sin ninguna defensa de aplicación.
+Dos de ellos, A03 (terminación de contexto) y A13 (mensaje de sistema embebido),
+\textbf{falsifican autoridad de sistema} dentro del canal único de texto:
+insertan un marcador que imita el formato con que el operador se dirige al
+modelo. El tercero, A10, opera de otro modo: sin marcador falso ni orden de
+anulación, solicita un resumen de las políticas bajo el pretexto de un informe de
+calidad del servicio, y el asistente parafrasea las cinco. Es una fuga de
+configuración obtenida por \textbf{encuadre plausible}, no por falsificación
+estructural, y resulta relevante que el \textit{canary} no llegara a aparecer: el
+contenido se reveló sin que el texto literal se filtrase, de modo que una
+detección basada únicamente en coincidencia exacta no lo habría advertido.
+
+Los ataques que operan por persuasión directa ---anulación explícita,
+suplantación de autoridad, encuadre ficcional--- fueron rechazados por el modelo
+sin ninguna defensa de aplicación.
 
 \subsubsection{Reducción por categoría}
 
@@ -74,14 +81,14 @@ margen que reducir y la comparación no es informativa.
 \midrule
 C1. Sobrescritura directa      & 25\,\% & 0\,\% & 100\,\% \\
 C2. Suplantación de rol        & 0\,\%  & 0\,\% & N/A \\
-C3. Extracción del prompt      & 0\,\%  & 0\,\% & N/A \\
+C3. Extracción del prompt      & 25\,\% & 0\,\% & 100\,\% \\
 C4. Contexto engañoso          & 25\,\% & 0\,\% & 100\,\% \\
 C5. Evasión por ofuscación     & 0\,\%  & 0\,\% & N/A \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Que tres de las cinco categorías arrojen $\Delta$ indefinido es en sí mismo un
+Que dos de las cinco categorías arrojen $\Delta$ indefinido es en sí mismo un
 resultado, y era una de las señales de alerta previstas en el diseño. Indica que
 el modelo base rechaza por su cuenta la mayor parte de los ataques clásicos
 descritos en la literatura, y que el margen sobre el que una defensa de
@@ -95,9 +102,11 @@ condiciones: el FPR preliminar es del 0\,\%. Esto incluye los cinco
 ataques (``ignora'', ``olvida'', ``instrucciones'', ``administrador'' y una
 cadena con forma de Base64). El filtro L3 no se activó con ninguno, lo que
 sugiere que la decisión de escribir sus reglas apuntando al \emph{objeto} de la
-orden y no a verbos sueltos evita el sobre-bloqueo que motivó su inclusión.
-% PROVISIONAL: un caso benigno (B11 en la condición B) quedó en revisión manual.
-% Si se etiqueta como DEGRADADO, el FPR de B pasa a 5 % (1/20).
+orden y no a verbos sueltos evita el sobre-bloqueo que motivó su inclusión. La
+revisión manual confirmó además que el único caso dudoso ---una respuesta que
+remite al portal de clientes para consultar un pago--- no constituye degradación,
+puesto que reproduce exactamente el comportamiento que el \textit{system prompt}
+prescribe para esa consulta.
 
 \subsubsection{Sobrecosto}
 
@@ -134,3 +143,14 @@ Conviene señalar que las diez interceptaciones se reparten entre siete reglas
 distintas de L3, incluidas dos que dispararon sobre texto decodificado (A17 en
 Base64 y A18 en ROT13), lo que indica que la detección no descansa en una única
 heurística dominante.
+
+Un caso merece atención aparte. A10, el único ataque que prosperó por encuadre
+plausible, \textbf{no fue interceptado por L3} en la condición B: su petición no
+contiene ninguna orden de anulación ni ningún marcador reconocible, y el filtro
+la dejó pasar. Sin embargo el asistente se negó a responderla, cosa que no hizo
+en la condición A ante el mismo texto. Puesto que ambas condiciones comparten
+modelo y parámetros, la diferencia solo puede atribuirse a las capas que operan
+a nivel de \textit{prompt}: la prohibición explícita de resumir o parafrasear las
+instrucciones que introduce L4, reforzada por el recordatorio de L2. Es, en este
+piloto, la única evidencia de que alguna capa distinta de L3 aporta algo, y
+justifica el estudio de ablación que se plantea en las limitaciones.
