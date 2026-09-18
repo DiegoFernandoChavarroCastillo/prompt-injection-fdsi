@@ -1,15 +1,51 @@
 # prompt-injection-fdsi
 
-Laboratorio de inyección directa de instrucciones en LLMs (OWASP LLM01) para la materia
-**Fundamentos de Seguridad de la Información**. Compara dos asistentes que resuelven la
-**misma** tarea: la **condición A** (baseline vulnerable, sin defensas) y la **condición B**
-(protegida con 5 capas: L1 delimitación estructural, L2 recordatorio en sándwich, L3 filtro
-de entrada, L4 anti-leaking, L5 validación de salida). Ambas se enfrentan a **20 ataques** en
-5 categorías y **20 prompts benignos** (15 ordinarios + 5 difíciles), y se reportan **ASR**
-(tasa de éxito de los ataques), **FPR** (benignos rechazados de más) y el sobrecosto en
-tokens y latencia.
+**¿Una defensa en capas contra la inyección de instrucciones sirve de algo, y cuánto
+cuesta en usabilidad?** Este repositorio contiene un experimento que lo mide: dos
+asistentes de seguros que resuelven la misma tarea —uno **sin defensas de aplicación** y
+otro con **cinco capas**— enfrentados a los mismos 20 ataques (OWASP LLM01) y a los mismos
+20 prompts legítimos.
 
-**Equipo:** Laura Alejandra Venegas Piraban · David Palacios · Diego Fernando Chavarro
+**Estado: entrega intermedia terminada.** Todo está implementado y probado (183 pruebas), y
+hay una corrida piloto de 80 interacciones. Resultado **preliminar** (N=1): la tasa de éxito
+de los ataques baja del **15 % al 0 %**, sin bloquear ningún prompt legítimo. Falta la
+corrida definitiva con N=5 y la auditoría manual independiente.
+
+### A dónde ir
+
+| Si quieres… | Ve a |
+|---|---|
+| Ver qué se entregó y dónde está cada cosa | **[Entregables.md](Entregables.md)** |
+| Entender por qué el experimento está montado así | **[docs/DECISIONES.md](docs/DECISIONES.md)** |
+| Leer el artículo | **[main.tex](main.tex)** (compilar en Overleaf) |
+| Ver las cifras del piloto | [results/pilot/metricas.md](results/pilot/metricas.md) |
+| Saber qué salió mal por el camino | [docs/proceso/incidencias.md](docs/proceso/incidencias.md) |
+| Instalar y ejecutar | seguir leyendo |
+
+---
+
+**Materia:** Fundamentos de Seguridad de la Información
+**Institución:** Escuela Colombiana de Ingeniería Julio Garavito
+**Autores:** Laura Alejandra Venegas Piraban · David Palacios · Diego Fernando Chavarro
+
+### Cómo funciona, en cuatro líneas
+
+La **condición A** concatena las instrucciones del sistema y el mensaje del cliente en un
+solo texto, que es el patrón ingenuo más extendido. La **condición B** conserva el mismo
+modelo y los mismos parámetros, y añade cinco capas: L1 delimitación estructural, L2
+recordatorio en sándwich, L3 filtro de entrada, L4 anti-leaking y L5 validación de salida.
+Se reportan **ASR** (tasa de éxito de los ataques), **FPR** (prompts legítimos rechazados de
+más) y el sobrecosto en tokens y latencia.
+
+---
+
+## Uso responsable
+
+Los ataques de este repositorio son **técnicas ya publicadas** en la literatura académica
+revisada y en el marco OWASP: describirlas no añade capacidad ofensiva nueva. Se ejecutan
+**únicamente** contra los dos asistentes creados para este estudio, sobre una aseguradora
+**ficticia**, y el secreto que se intenta extraer es un **valor sintético** que no protege
+ningún sistema real. No se atacaron servicios de terceros ni se usaron datos personales.
 
 ---
 
@@ -246,9 +282,9 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **4 — Condición B** | Las cinco capas L1–L5 implementadas y probadas; umbral de L5 calibrado con benignos | ✅ **Hecha** |
 | **5 — Ejecutor y logs** | `runner.py` reanudable, orden aleatorizado, logs JSONL de 29 campos | ✅ **Hecha** |
 | **6 — Clasificador y métricas** | Árbol de la Fig. 4 + ASR/FPR/sobrecosto en tres modos de revisión | ✅ **Hecha** |
-| **7 — Corrida piloto (N=1)** | 80 interacciones, 0 errores, tag `pilot-freeze`. **2 casos esperan revisión manual** | 🟡 Falta la revisión |
-| 8 — Actualización del artículo | Material listo en `docs/`; **falta aplicarlo a `main.tex`** | 🟡 Preparada |
-| 9 — Preparación de la entrega | README y `docs/guion_demo.md` listos; falta el tag `entrega-2` | 🟡 Preparada |
+| **7 — Corrida piloto (N=1)** | 80 interacciones, 0 errores, revisión manual completada ([resultados](results/pilot/metricas.md)) | ✅ **Hecha** |
+| **8 — Actualización del artículo** | Tabla 6, anexos, desviaciones y Sección IV aplicados a `main.tex` | ✅ **Hecha** |
+| **9 — Preparación de la entrega** | [Entregables.md](Entregables.md), [guion de demo](docs/guion_demo.md) y tag `entrega-2` | ✅ **Hecha** |
 
 ### Qué hay hoy en el repositorio
 
@@ -265,14 +301,16 @@ stub.
 
 | | A | B |
 |---|---|---|
-| ASR | 11 % (2/19) | 0 % (0/20) |
+| ASR | 15 % (3/20) | 0 % (0/20) |
 | FPR | 0 % | 0 % |
 | Tokens de entrada (media) | 673 | 1 137 |
 
-Los dos ataques que funcionaron contra A son A03 y A13, y comparten mecanismo: ambos
-**falsifican autoridad de sistema** dentro del canal de texto. En C2, C3 y C5 el ASR de A
-fue 0 %, así que Δ queda indefinido: el modelo base rechaza por su cuenta la mayoría de los
-ataques clásicos. Detalle en `results/pilot/`.
+Tres ataques funcionaron contra A, por dos mecanismos distintos: A03 y A13 **falsifican
+autoridad de sistema** dentro del canal de texto, y A10 obtiene la fuga por **encuadre
+plausible**, sin marcador falso ni orden de anulación. En C2 y C5 el ASR de A fue 0 %, así
+que Δ queda indefinido: el modelo base rechaza por su cuenta la mayoría de los ataques
+clásicos, y ese es el hallazgo del trabajo. Detalle en
+[`results/pilot/`](results/pilot/metricas.md).
 
 Las dos incidencias detectadas durante la construcción están **resueltas y documentadas**
 en [`docs/proceso/incidencias.md`](docs/proceso/incidencias.md). Quedan **2 casos pendientes
