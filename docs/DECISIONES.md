@@ -276,3 +276,24 @@ latencia del piloto se reporta solo con `api_latency_ms`, que no está afectado.
 La corrida definitiva (N=5, 400 interacciones) se ejecutará sobre este tag, que
 incluye la corrección de B-02. Desde aquí no se modifica `src/`, `prompts/` ni
 `data/` hasta que esa corrida termine y se analice.
+
+---
+
+## 15. Entrega intermedia
+
+**Fecha:** 2026-09-18 · **Evidencia:** tag **`entrega-2`** → commit `5680d1c`
+
+Estado del repositorio en el momento de la entrega intermedia. No congela nada
+por sí mismo: sirve para poder citar con exactitud qué se entregó.
+
+Las tres etiquetas que sí garantizan algo son las anteriores:
+**`battery-v1`** (`b5e83d2`), **`pilot-freeze`** (`cbce3dd`)
+y **`final-freeze`** (`afd49bd`).
+
+`final-freeze` marca además el código sobre el que se ejecutará la corrida
+definitiva, y `git diff final-freeze -- src config prompts data` debe salir vacío
+hasta que esa corrida termine. Al preparar la entrega, la reorganización de las
+notas actualizó rutas dentro de comentarios de tres archivos congelados; se
+comprobó que no había cambio de comportamiento y se restauraron desde el tag. Las
+rutas antiguas que esos comentarios citan quedan explicadas en
+[`evidencia/README.md`](evidencia/README.md).

@@ -149,7 +149,7 @@ Tres etiquetas de git marcan estados del repositorio que se pueden verificar.
 | `battery-v1` | `b5e83d2` | La batería quedó fijada **antes** de escribir una sola línea de las defensas. Sus huellas SHA-256 están en `data/MANIFEST.txt` y las pruebas las comprueban en cada ejecución |
 | `pilot-freeze` | `cbce3dd` | Estado exacto del código con el que se ejecutó el piloto. Los resultados de la Sección IV son reproducibles sobre esta versión |
 | `final-freeze` | `afd49bd` | Estado sobre el que se ejecutará la corrida definitiva. Incluye la corrección del defecto de medición de latencia |
-| `entrega-2` | *(la punta de `main`)* | Estado del repositorio en el momento de esta entrega. Apunta al último commit de la rama |
+| `entrega-2` | `5680d1c` | Estado del repositorio en el momento de esta entrega |
 
 ---
 
