@@ -65,7 +65,8 @@ sin ninguna defensa de aplicación.
 
 \subsubsection{Reducción por categoría}
 
-La Tabla~\ref{tab:piloto-delta} presenta el ASR por categoría. La reducción
+La Tabla~\ref{tab:piloto-delta} y la Fig.~\ref{fig:piloto-asr} presentan el ASR
+por categoría. La reducción
 $\Delta$ solo está definida donde la condición A registró algún éxito: en las
 categorías C2, C3 y C5 el ASR de la línea base fue cero, de modo que no existe
 margen que reducir y la comparación no es informativa.
@@ -93,6 +94,73 @@ resultado, y era una de las señales de alerta previstas en el diseño. Indica q
 el modelo base rechaza por su cuenta la mayor parte de los ataques clásicos
 descritos en la literatura, y que el margen sobre el que una defensa de
 aplicación puede demostrar utilidad es, con este modelo, estrecho.
+
+
+\begin{figure}[t]
+\centering
+% Barras agrupadas en TikZ puro: main.tex ya carga tikz, así que la figura no
+% añade ningún paquete al preámbulo. La codificación es por LUMINANCIA y no por
+% tono, porque el artículo se imprime y se fotocopia, y dos grises bien separados
+% sobreviven a eso mejor que dos colores. La identidad no descansa solo en el
+% relleno: hay leyenda y una etiqueta con el valor sobre cada barra.
+%
+% Nombres de macro: se evitan \a, \b, \i y \v como variables de bucle porque son
+% comandos del núcleo de LaTeX (acentos y la i sin punto).
+\begin{tikzpicture}[
+    font=\scriptsize,
+    xscale=0.92,
+    barraA/.style={fill=black!68},
+    barraB/.style={fill=black!22, draw=black!45},
+    cero/.style={line width=1.1pt},
+    valor/.style={anchor=south, inner sep=1.5pt, black!75},
+    nulo/.style={anchor=south, inner sep=1.5pt, black!45},
+    rotulo/.style={anchor=north, inner sep=3pt, black!70},
+    textoleyenda/.style={anchor=west, inner sep=2pt, black!70}
+  ]
+  % 2,6 cm = 30 %  =>  0,0866 cm por punto porcentual.
+  % Las alturas van escritas en claro para no depender de aritmética en tiempo
+  % de compilación: 25 % -> 2,165 cm.
+
+  % --- rejilla y eje, deliberadamente recesivos ---
+  \foreach \gv/\gy in {0/0, 10/0.866, 20/1.732, 30/2.598}{
+    \draw[black!12] (-0.12,\gy) -- (6.95,\gy);
+    \node[anchor=east, black!55, inner sep=2pt] at (-0.12,\gy) {\gv\,\%};
+  }
+  \draw[black!40] (-0.12,0) -- (6.95,0);
+
+  % --- leyenda ---
+  \fill[barraA] (0.30,2.92) rectangle (0.54,3.10);
+  \node[textoleyenda] at (0.56,3.01) {Condición A};
+  \draw[barraB]  (2.30,2.92) rectangle (2.54,3.10);
+  \node[textoleyenda] at (2.56,3.01) {Condición B};
+
+  % --- Condición A: barras con éxito (C1, C3 y C4 al 25 %) ---
+  \foreach \xc in {0.60, 3.40, 4.80}{
+    \fill[barraA] ({\xc-0.29},0) rectangle ({\xc-0.03},2.165);
+    \node[valor]  at ({\xc-0.16},2.165) {25};
+  }
+  % --- Condición A: categorías sin éxito (C2 y C5) ---
+  \foreach \xc in {2.00, 6.20}{
+    \draw[barraA, cero] ({\xc-0.29},0.015) -- ({\xc-0.03},0.015);
+    \node[nulo] at ({\xc-0.16},0.04) {0};
+  }
+  % --- Condición B: cero en las cinco categorías ---
+  \foreach \xc in {0.60, 2.00, 3.40, 4.80, 6.20}{
+    \draw[black!45, cero] ({\xc+0.03},0.015) -- ({\xc+0.29},0.015);
+    \node[nulo] at ({\xc+0.16},0.04) {0};
+  }
+  % --- rótulos de categoría ---
+  \foreach \xc/\cat in {0.60/C1, 2.00/C2, 3.40/C3, 4.80/C4, 6.20/C5}{
+    \node[rotulo] at (\xc,-0.04) {\cat};
+  }
+\end{tikzpicture}
+\caption{Tasa de éxito de los ataques (ASR) por categoría en la corrida
+\textbf{piloto preliminar, $N=1$}. La condición B no registró ningún éxito en
+ninguna categoría; los ceros se marcan de forma explícita para distinguir una
+medición nula de un dato ausente. En C2 y C5 tampoco la línea base registró
+éxitos, de modo que la reducción no está definida.}
+\label{fig:piloto-asr}
+\end{figure}
 
 \subsubsection{Costo en usabilidad}
 

@@ -65,6 +65,7 @@ Por ello, el objetivo de este artículo es diseñar, implementar y evaluar compa
 
 \begin{itemize}
     \item Se diseña e implementa una línea base sin defensas de aplicación, que actúa como entorno de control frente a la inyección directa de instrucciones.
+    El código, la batería de ataques, los \textit{prompts} y los registros crudos del experimento son públicos.\footnote{\url{https://github.com/DiegoFernandoChavarroCastillo/prompt-injection-fdsi}}
     \item Se diseña e implementa un chatbot protegido que integra cinco capas específicas de defensa: delimitación estructural del \textit{system prompt}, refuerzo de instrucciones mediante enmarcado (técnica \textit{sándwich}), validación y filtrado de entradas sospechosas, restricciones explícitas contra la revelación de reglas (\textit{prompt leaking}), y validación de salida post-procesamiento.
     \item Se construye y ejecuta un conjunto de pruebas representativo de 20 ataques de inyección directa, clasificados en cinco categorías tácticas: sobrescritura directa de instrucciones, suplantación de rol, extracción de instrucciones, inyección por contexto engañoso y evasión por ofuscación. Estas categorías están alineadas con las taxonomías de OWASP \cite{ref3} y competencias públicas de \textit{prompt hacking} \cite{ref10}.
     \item Se evalúa empíricamente la efectividad de las defensas mapeando cada categoría de ataque con su contramedida específica, utilizando como métricas principales la Tasa de Éxito de Ataque (ASR, por sus siglas en inglés) y la tasa de falsos positivos en interacciones legítimas, asegurando así un balance entre seguridad y usabilidad \cite{ref5}.
@@ -784,7 +785,7 @@ segundos entre llamadas se deriva de los límites de uso del proveedor
 \toprule
 \textbf{Parámetro} & \textbf{Valor} \\
 \midrule
-Modelo & \texttt{openai/gpt-oss-120b} \\
+Modelo & \texttt{openai/gpt-oss-120b} \cite{ref12} \\
 Proveedor & Groq (endpoint compatible) \\
 Modo de acceso & API oficial \\
 Temperatura & 0{,}7 (ver Sección III-A) \\
@@ -920,6 +921,33 @@ dentro del canal de texto.
 
 
 
+\section*{Disponibilidad de código y datos}
+
+El código del experimento, la batería completa de ataques, los \textit{prompts}
+de ambas condiciones, los registros crudos de la corrida piloto y los informes
+derivados están disponibles
+en\linebreak \url{https://github.com/DiegoFernandoChavarroCastillo/prompt-injection-fdsi}.
+
+Dos etiquetas del repositorio sirven como evidencia verificable del
+preregistro. La etiqueta \texttt{battery-v1} marca el estado en que se congelaron
+los 20 ataques y los 20 \textit{prompts} benignos, \emph{antes} de escribir una
+sola línea de los filtros; el archivo \texttt{data/MANIFEST.txt} recoge sus
+huellas SHA-256 y la suite de pruebas las verifica en cada ejecución, de modo que
+cualquier modificación posterior de la batería resulta detectable. La etiqueta
+\texttt{pilot-freeze} marca el estado del código con el que se ejecutó la corrida
+piloto, de forma que los resultados de la Sección~\ref{sec:piloto} pueden
+reproducirse exactamente sobre esa versión. El registro de decisiones
+metodológicas, con su fecha y su justificación, y el registro de incidencias
+acompañan al código en el mismo repositorio.
+
+% REVISAR CON EL EQUIPO
+\section*{Declaración de uso de herramientas de IA}
+
+Se utilizó Claude Code (Anthropic) como asistente de programación para
+implementar el código del experimento. El diseño experimental, la revisión de las
+decisiones metodológicas y la interpretación de los resultados son
+responsabilidad de los autores.
+
 % .............................REFERENCIAS
 \begin{thebibliography}{00}
 
@@ -952,6 +980,9 @@ X. Suo, ``Signed-Prompt: A New Approach to Prevent Prompt Injection Attacks Agai
 
 \bibitem{ref10}
 S. Schulhoff, J. Pinto, A. Khan, L.-F. Bouchard, C. Si, S. Anati, V. Tagliabue, A. Kost, C. Carnahan, and J. Boyd-Graber, ``Ignore This Title and HackAPrompt: Exposing Systemic Vulnerabilities of LLMs Through a Global Scale Prompt Hacking Competition,'' in \textit{Proc. 2023 Conf. Empirical Methods in Natural Language Processing (EMNLP)}, 2023, pp. 4945--4977.
+
+\bibitem{ref12}
+OpenAI, ``gpt-oss-120b \& gpt-oss-20b Model Card,'' \textit{arXiv preprint arXiv:2508.10925}, 2025.
 
 \bibitem{ref11}
 F. Aguilera and F. Berzal, ``LLM Security: Vulnerabilities, Attacks, Defenses, and Countermeasures,'' \textit{arXiv preprint arXiv:2505.01177}, 2025.
