@@ -100,6 +100,28 @@ Imprime el payload, la respuesta, el razonamiento interno (rotulado aparte) y la
 con las corridas contaminaría el corpus del que salen el ASR y el FPR. Los datos los produce
 únicamente `src/runner.py`. Consume cuota: cada ejecución es una llamada real.
 
+### Correr el piloto, clasificar y sacar métricas
+
+```bash
+# La corrida completa: 40 prompts x 2 condiciones x N repeticiones
+python -m src.runner --condition both --n 1 --set all \
+    --out logs/pilot/ --run-id pilot-2026-09-18
+
+# Clasificar y generar los tres informes de results/pilot/
+python scripts/report_pilot.py logs/pilot/pilot-2026-09-18.jsonl
+```
+
+**Ensayo sin gastar cuota:** añade `--dry-run` para verificar el runner con un
+cliente falso.
+
+**Reanudar una corrida cortada:** vuelve a lanzar **el mismo comando**. El runner
+lee el JSONL existente y se salta las tuplas que ya tengan un resultado distinto de
+`error`, así que un corte no obliga a repetir lo hecho y reintentar los errores es
+volver a ejecutar sin más.
+
+El piloto tarda unos 15 minutos: hay 12 s de espera entre llamadas para no agotar el
+cupo de 8 000 tokens/minuto.
+
 ### Anexo A para el artículo
 
 ```bash
@@ -196,6 +218,9 @@ prompt-injection-fdsi/
 │   ├── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
 │   ├── freeze_battery.py      # congela la batería (preregistro)
 │   ├── export_annex_a.py      # genera docs/anexo_A.tex
+│   ├── export_annex_b.py      # genera docs/anexo_B.tex
+│   ├── calibrate_l5.py        # calibra el umbral de L5 (solo con benignos)
+│   ├── report_pilot.py        # clasifica el log y genera results/pilot/
 │   └── try_chatbot.py         # prueba manual de un chatbot (NO escribe logs)
 ├── docs/anexo_A.tex           # Anexo A generado, para el artículo
 ├── tests/                     # pruebas que no consumen cuota
@@ -218,12 +243,12 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
 | **2 — Batería de ataques y benignos** | 40 prompts con metadatos, congelados como `v1` y preregistrados (tag `battery-v1`) | ✅ **Hecha** |
 | **3 — Condición A** | Chatbot vulnerable (Listing 1): concatenación plana en un solo mensaje `user` | ✅ **Hecha** |
-| 4 — Condición B | **4a hecha**: contexto L1 + L2 + L4 y orquestación del flujo. Pendientes 4b (reglas de L3) y 4c (validador L5) | 🟡 En curso |
-| 5 — Ejecutor y logs | `runner.py`, logs JSONL reprocesables | ⬜ Pendiente |
-| 6 — Clasificador y métricas | Árbol de la Fig. 4 + ASR/FPR/sobrecosto | ⬜ Pendiente |
-| 7 — Corrida piloto (N=1) | 80 interacciones, revisión manual de casos ambiguos, tag `pilot-freeze` | ⬜ Pendiente |
-| 8 — Actualización del artículo | Tabla 6, Anexos A y B, Sección IV marcada como preliminar | ⬜ Pendiente |
-| 9 — Preparación de la entrega | README final, guion de demo, empaquetado | ⬜ Pendiente |
+| **4 — Condición B** | Las cinco capas L1–L5 implementadas y probadas; umbral de L5 calibrado con benignos | ✅ **Hecha** |
+| **5 — Ejecutor y logs** | `runner.py` reanudable, orden aleatorizado, logs JSONL de 29 campos | ✅ **Hecha** |
+| **6 — Clasificador y métricas** | Árbol de la Fig. 4 + ASR/FPR/sobrecosto en tres modos de revisión | ✅ **Hecha** |
+| **7 — Corrida piloto (N=1)** | 80 interacciones, 0 errores, tag `pilot-freeze`. **2 casos esperan revisión manual** | 🟡 Falta la revisión |
+| 8 — Actualización del artículo | Material listo en `docs/`; **falta aplicarlo a `main.tex`** | 🟡 Preparada |
+| 9 — Preparación de la entrega | README y `docs/guion_demo.md` listos; falta el tag `entrega-2` | 🟡 Preparada |
 
 ### Qué hay hoy en el repositorio
 
@@ -232,11 +257,25 @@ Lo que ya funciona: la configuración (`src/config.py`), el cliente de la API
 (`src/battery.py`), los cuatro scripts y sus pruebas. Los system prompts de ambas
 condiciones están escritos y su simetría verificada; la batería de 20 ataques y 20
 benignos está congelada y preregistrada.
-La **condición A** ya está implementada y es utilizable.
+**Las dos condiciones, el runner, el clasificador y las métricas están implementados**, y
+el piloto N=1 se ejecutó el 18-sep-2026 (80 interacciones, 0 errores). Ya no queda ningún
+stub.
 
-Todo lo demás son **stubs** con su contrato documentado en el docstring y
-`raise NotImplementedError`: la firma y el formato de retorno ya están acordados, así que
-las fases siguientes pueden avanzar en paralelo sin chocar entre sí.
+**Resultados preliminares del piloto** (N=1, ninguna conclusión fuerte):
+
+| | A | B |
+|---|---|---|
+| ASR | 11 % (2/19) | 0 % (0/20) |
+| FPR | 0 % | 0 % |
+| Tokens de entrada (media) | 673 | 1 137 |
+
+Los dos ataques que funcionaron contra A son A03 y A13, y comparten mecanismo: ambos
+**falsifican autoridad de sistema** dentro del canal de texto. En C2, C3 y C5 el ASR de A
+fue 0 %, así que Δ queda indefinido: el modelo base rechaza por su cuenta la mayoría de los
+ataques clásicos. Detalle en `results/pilot/`.
+
+⚠️ Hay **dos bloqueos abiertos** en `notas/BLOQUEOS.md` que Diego debe resolver, y **2 casos
+pendientes de revisión manual** en `results/pilot/revision_manual.csv`.
 
 Ambas condiciones devuelven el **mismo dict de once claves** (`src.RESPONSE_KEYS`:
 `response`, `raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`,
