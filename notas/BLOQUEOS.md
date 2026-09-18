@@ -63,3 +63,42 @@ prohibición es informativo:
   lo que haría un preregistro serio: reportar la desviación, no borrarla.
 - **Sugerencia para el documento:** la sección 3.4 debería pedir la verificación
   con `--set benign` más payloads sintéticos, no con `--set all`.
+
+---
+
+## B-02 — `latency_ms` incluye la espera de rate limit: métrica inutilizable
+
+**Gravedad:** media. Bug real, detectado por el piloto. **No corregido** por la
+prohibición 6 (tras `pilot-freeze` solo se documenta).
+
+**Qué pasa.** `min_seconds_between_calls` (12 s) se duerme dentro de
+`LLMClient.chat()`, que está dentro de `respond()`. Como `latency_ms` cronometra
+`respond()` entero, se traga esos 12 segundos.
+
+**Cómo se ve.** En el piloto, la condición B sale **más rápida** que la A
+(9 733 ms frente a 12 577 ms), lo que es absurdo para la condición que hace más
+trabajo. La causa: las 10 interacciones que L3 bloqueó en B no llamaron a la API
+y por tanto no esperaron, y eso baja la media.
+
+**Qué queda invalidado.** La resta `latency_ms - api_latency_ms` NO es el costo
+de las capas deterministas, aunque los docstrings de `respond()` que escribí en
+la subfase 3.1 digan eso. Hay que corregir también esa documentación.
+
+**Qué sigue siendo válido.** `api_latency_ms` (A = 879 ms, B = 978 ms) y todo el
+sobrecosto en tokens (673 vs. 1 137 de entrada). Son las cifras que deben ir al
+artículo.
+
+**Decisión que necesita Diego.** Elegir el arreglo y cuándo aplicarlo:
+
+1. **Mover el espaciado al runner**, entre interacciones, fuera de `respond()`.
+   Es lo más limpio conceptualmente: esperar por cortesía con la API no es parte
+   de responder. Obliga a tocar `llm_client.py` y `runner.py`.
+2. **Restar el tiempo dormido**: que `LLMClient` devuelva cuánto durmió y que
+   `respond()` lo descuente. Menos invasivo, pero deja el concepto mezclado.
+3. **No arreglarlo y reportar solo `api_latency_ms`**, documentando que
+   `latency_ms` no es interpretable en corridas con espaciado. Es la opción más
+   barata y no invalida ninguna conclusión del estudio.
+
+Mi sugerencia es la **1**, y aplicarla antes de la corrida final para que las 400
+interacciones traigan la cifra buena. Si se aplica, hay que repetir el piloto o
+declarar que el sobrecosto de latencia se mide solo con `api_latency_ms`.

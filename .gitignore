@@ -230,3 +230,8 @@ results/**/*
 !results/**/
 !logs/pilot/.gitkeep
 !results/pilot/.gitkeep
+# Los informes derivados SÍ se versionan: son pequeños, son el entregable que
+# lee el equipo y van citados en el artículo. Lo que no se versiona son los
+# datos crudos (.jsonl), que se regeneran ejecutando el runner.
+!results/**/*.md
+!results/**/*.csv
