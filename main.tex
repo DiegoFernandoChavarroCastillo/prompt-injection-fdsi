@@ -61,10 +61,10 @@ Para hacer frente a esto, la literatura reciente ha propuesto un abanico de estr
 
 A pesar de la abundante investigación, notamos un vacío importante en la literatura práctica. La mayoría de los estudios evalúan ataques o defensas de forma aislada, sin ofrecer una comparación controlada y directa entre un sistema vulnerable y uno protegido frente al mismo conjunto de amenazas. Esta simetría experimental es vital, especialmente en entornos de desarrollo aplicado, para demostrar con métricas reales cuál es el verdadero valor agregado de implementar capas de seguridad.
 
-Por ello, el objetivo de este artículo es diseñar, implementar y evaluar comparativamente dos asistentes conversacionales basados en LLM: una línea base vulnerable (sin mecanismos de defensa) y una versión protegida, equipada con una arquitectura de mitigación en capas. Las principales contribuciones de este trabajo se resumen a continuación:
+Por ello, el objetivo de este artículo es diseñar, implementar y evaluar comparativamente dos asistentes conversacionales basados en LLM: una línea base sin defensas de aplicación y una versión protegida, equipada con una arquitectura de mitigación en capas. Las principales contribuciones de este trabajo se resumen a continuación:
 
 \begin{itemize}
-    \item Se diseña e implementa un chatbot vulnerable que actúa como entorno de control, carente de defensas contra la inyección directa de instrucciones.
+    \item Se diseña e implementa una línea base sin defensas de aplicación, que actúa como entorno de control frente a la inyección directa de instrucciones.
     \item Se diseña e implementa un chatbot protegido que integra cinco capas específicas de defensa: delimitación estructural del \textit{system prompt}, refuerzo de instrucciones mediante enmarcado (técnica \textit{sándwich}), validación y filtrado de entradas sospechosas, restricciones explícitas contra la revelación de reglas (\textit{prompt leaking}), y validación de salida post-procesamiento.
     \item Se construye y ejecuta un conjunto de pruebas representativo de 20 ataques de inyección directa, clasificados en cinco categorías tácticas: sobrescritura directa de instrucciones, suplantación de rol, extracción de instrucciones, inyección por contexto engañoso y evasión por ofuscación. Estas categorías están alineadas con las taxonomías de OWASP \cite{ref3} y competencias públicas de \textit{prompt hacking} \cite{ref10}.
     \item Se evalúa empíricamente la efectividad de las defensas mapeando cada categoría de ataque con su contramedida específica, utilizando como métricas principales la Tasa de Éxito de Ataque (ASR, por sus siglas en inglés) y la tasa de falsos positivos en interacciones legítimas, asegurando así un balance entre seguridad y usabilidad \cite{ref5}.
@@ -134,7 +134,8 @@ Este trabajo adopta un diseño cuasi-experimental comparativo de dos
 condiciones bajo control simétrico. Se implementan dos asistentes
 conversacionales funcionalmente equivalentes que resuelven la misma tarea
 de negocio y operan sobre el mismo modelo base: la condición A
-(\textit{baseline} vulnerable), sin ningún mecanismo de mitigación, y la
+(\textit{baseline} sin defensas de aplicación), sin ningún mecanismo de
+mitigación implementado en la aplicación, y la
 condición B (\textit{hardened}), que incorpora una arquitectura de
 defensa en capas. Ambas condiciones se someten a la misma batería de
 ataques y al mismo conjunto de control benigno, ejecutados en el mismo
@@ -144,7 +145,8 @@ Las variables del estudio se definen como sigue:
 
 \begin{itemize}
     \item \textbf{Variable independiente:} arquitectura del asistente
-    (A: vulnerable / B: protegido). Es la \emph{única} dimensión que
+    (A: sin defensas de aplicación / B: protegido). Es la \emph{única}
+    dimensión que
     varía entre condiciones.
     \item \textbf{Variables dependientes:} (i) resultado del ataque,
     codificado como éxito total, éxito parcial o fallo; (ii) resultado
@@ -190,7 +192,7 @@ construcción de la batería hasta el cálculo de métricas.
   {Ejecutor automatizado\\\tiny $N=5$ repeticiones · sesión limpia por intento};
 
 \node[cond, text width=1.9cm, fill=black!5] (ca) at (0,-3.0)
-  {Condición A\\\tiny Chatbot vulnerable};
+  {Condición A\\\tiny Sin defensas de aplicación};
 \node[cond, text width=1.9cm, fill=black!18] (cb) at (2.6,-3.0)
   {Condición B\\\tiny Chatbot protegido};
 
@@ -267,7 +269,7 @@ observada entre las condiciones A y B es atribuible a la arquitectura de
 mitigación y no a las salvaguardas nativas del proveedor. Esta elección
 protege la validez interna del experimento.
 
-\subsection{Arquitectura del chatbot vulnerable (condición A)}
+\subsection{Arquitectura de la línea base sin defensas de aplicación (condición A)}
 
 La condición A representa el patrón de implementación ingenuo más
 extendido en prototipos y proyectos de adopción rápida: la entrada del
@@ -296,6 +298,16 @@ condición B corrige mediante L1.
 
 La Fig.~\ref{fig:arqA} ilustra este flujo: un único canal de texto, sin
 puntos de control.
+
+Conviene precisar qué significa aquí ``sin defensas''. La condición A carece
+de defensas \emph{de aplicación}: no filtra la entrada, no separa roles, no
+inspecciona la salida. Pero el modelo subyacente conserva el alineamiento con
+que fue entrenado, y ese alineamiento es una constante compartida por ambas
+condiciones. Denominar a esta condición ``vulnerable'' sin más anticiparía un
+resultado que, como muestra la Sección~\ref{sec:piloto}, los datos no
+sostienen: la línea base rechaza por su cuenta la mayoría de los ataques
+clásicos. Lo que el experimento manipula, y lo único que puede atribuirse a la
+condición, es la presencia o ausencia de las cinco capas.
 
 \begin{figure}[t]
 \centering
