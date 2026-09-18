@@ -10,6 +10,12 @@ Produce:
 * ``observaciones.md`` — observaciones DESCRIPTIVAS. Con N=1 no se sacan
   conclusiones: se describe lo que pasó y se marcan las señales de alerta.
 
+Si ``results/pilot/revision_manual.csv`` ya trae etiquetas en la columna
+``label_manual``, se incorporan al log clasificado **sin tocar ``label_auto``**:
+las dos conviven, y las métricas usan la manual cuando existe. Así la revisión
+humana queda trazable —se ve qué decidió el clasificador y qué corrigió una
+persona— en vez de sustituir una por otra en silencio.
+
 No llama a la API: trabaja sobre el JSONL ya escrito.
 
 Uso:
@@ -40,6 +46,39 @@ def _corta(texto: str | None, n: int = 160) -> str:
     return limpio if len(limpio) <= n else limpio[: n - 1] + "…"
 
 
+def leer_etiquetas_manuales(csv_path: Path) -> dict[tuple[str, str], dict[str, str]]:
+    """Etiquetas que una persona escribió en el CSV de revisión.
+
+    Devuelve un mapa ``(prompt_id, condition) -> {"label": ..., "nota": ...}``
+    con solo las filas que tengan ``label_manual`` no vacío. Un CSV recién
+    generado, sin rellenar, devuelve un mapa vacío y no cambia nada.
+    """
+    if not csv_path.exists():
+        return {}
+    etiquetas: dict[tuple[str, str], dict[str, str]] = {}
+    with csv_path.open(encoding="utf-8", newline="") as fh:
+        for fila in csv.DictReader(fh):
+            manual = (fila.get("label_manual") or "").strip()
+            if manual:
+                etiquetas[(fila["prompt_id"], fila["condition"])] = {
+                    "label": manual.upper(),
+                    "nota": (fila.get("nota") or "").strip(),
+                }
+    return etiquetas
+
+
+def aplicar_etiquetas_manuales(filas: list[dict], etiquetas: dict) -> int:
+    """Escribe ``label_manual`` en las filas correspondientes. ``label_auto`` no se toca."""
+    aplicadas = 0
+    for fila in filas:
+        clave = (fila["prompt_id"], fila["condition"])
+        if clave in etiquetas:
+            fila["label_manual"] = etiquetas[clave]["label"]
+            fila["label_manual_nota"] = etiquetas[clave]["nota"]
+            aplicadas += 1
+    return aplicadas
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", help="ruta del JSONL del piloto")
@@ -55,6 +94,16 @@ def main() -> int:
 
     clasificado = classify_file(log, canary=config.canary())
     filas = cargar(clasificado)
+
+    # La revisión humana, si ya existe, manda sobre la automática.
+    csv_revision = salida / "revision_manual.csv"
+    etiquetas = leer_etiquetas_manuales(csv_revision)
+    aplicadas = aplicar_etiquetas_manuales(filas, etiquetas)
+    if aplicadas:
+        with clasificado.open("w", encoding="utf-8") as fh:
+            for fila in filas:
+                fh.write(json.dumps(fila, ensure_ascii=False) + "\n")
+
     metricas = compute_metrics(filas)
     ataques = {a.id: a for a in load_attacks(config)}
 
@@ -82,8 +131,16 @@ def main() -> int:
     )
 
     # ---------------- revision_manual.csv ----------------
-    pendientes = [f for f in filas if f.get("label_auto") == "REVISION_MANUAL"]
-    with (salida / "revision_manual.csv").open("w", encoding="utf-8", newline="") as fh:
+    # Solo siguen pendientes las que no tienen ya etiqueta manual.
+    pendientes = [
+        f for f in filas
+        if f.get("label_auto") == "REVISION_MANUAL" and not f.get("label_manual")
+    ]
+    if aplicadas and not pendientes:
+        # No se reescribe el CSV ya revisado: borraría el trabajo hecho a mano.
+        pass
+    destino_csv = csv_revision if not aplicadas else salida / "revision_manual_pendientes.csv"
+    with destino_csv.open("w", encoding="utf-8", newline="") as fh:
         escritor = csv.writer(fh)
         escritor.writerow([
             "order_index", "prompt_id", "condition", "set", "category",
@@ -265,9 +322,17 @@ def main() -> int:
 
     (salida / "observaciones.md").write_text("\n".join(obs), encoding="utf-8")
 
-    print(f"Informes en {salida.relative_to(config.project_root)}:")
+    try:
+        mostrado = salida.relative_to(config.project_root)
+    except ValueError:  # --out fuera del repositorio (ensayos)
+        mostrado = salida
+    print(f"Informes en {mostrado}:")
     print(f"  metricas.md          ({len(filas)} interacciones)")
-    print(f"  revision_manual.csv  ({len(pendientes)} casos pendientes)")
+    if aplicadas:
+        print(f"  etiquetas manuales incorporadas: {aplicadas}")
+        for (pid, cond), datos in sorted(etiquetas.items()):
+            print(f"    {pid}/{cond} -> {datos['label']}")
+    print(f"  {destino_csv.name}  ({len(pendientes)} casos pendientes)")
     print(f"  observaciones.md")
     print(f"  log clasificado: {clasificado.name}")
     return 0
