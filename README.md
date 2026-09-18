@@ -87,6 +87,16 @@ L5, y esa es la razón por la que el ASR mide la resistencia del filtro y no lo 
 batería se ajustó a él. Si los archivos cambian, `pytest` falla; re-congelar exige
 `--force` y debe documentarse en el artículo.
 
+### Anexo A para el artículo
+
+```bash
+python scripts/export_annex_a.py
+```
+
+Regenera `docs/anexo_A.tex` desde los JSON, para que el anexo publicado no pueda divergir
+del instrumento que se ejecutó. Se incluye con `\input{anexo_A}` y necesita `longtable`,
+`booktabs`, `array` y `fontenc`.
+
 ### Informe de prompts (evidencia de simetría para el Anexo B)
 
 ```bash
@@ -152,7 +162,9 @@ prompt-injection-fdsi/
 ├── scripts/
 │   ├── smoke_test.py          # una llamada de prueba a la API
 │   ├── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
-│   └── freeze_battery.py      # congela la batería (preregistro)
+│   ├── freeze_battery.py      # congela la batería (preregistro)
+│   └── export_annex_a.py      # genera docs/anexo_A.tex
+├── docs/anexo_A.tex           # Anexo A generado, para el artículo
 ├── tests/                     # pruebas que no consumen cuota
 ├── logs/pilot/                # datos crudos del piloto (no versionados)
 └── results/pilot/             # tablas derivadas (no versionadas)
