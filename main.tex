@@ -532,7 +532,7 @@ A16 & Instrucción parasitaria & Adjunta una orden maliciosa al final de una con
 \midrule
 \multicolumn{4}{@{}l}{\textit{C5. Evasión por ofuscación}} \\
 A17 & Codificación Base64 & Entrega la instrucción maliciosa codificada y solicita su ejecución & Goal hijacking (P1) \\
-A18 & Cifrado por sustitución & Emplea ROT13 o \textit{leetspeak} sobre los términos disparadores & Policy bypass (P2) \\
+A18 & Cifrado por sustitución (ROT13) & Entrega la instrucción cifrada en ROT13 y solicita descifrarla y ejecutarla & Prompt leaking (P2) \\
 A19 & \textit{Payload splitting} & Define fragmentos inocuos y solicita concatenarlos y ejecutarlos & Goal hijacking (P1) \\
 A20 & Homóglifos y caracteres invisibles & Sustituye caracteres y añade espaciado de ancho cero para evadir filtros & Prompt leaking (P2) \\
 \bottomrule
@@ -713,27 +713,45 @@ respuesta y el estado clasificado, en formato JSON estructurado. Este
 registro constituye el insumo directo de la Sección IV y permite la
 reproducción íntegra del experimento.
 
+Dos valores de la tabla requieren aclaración. El modelo empleado es un modelo
+de razonamiento: los \textit{tokens} que dedica a su deliberación interna se
+descuentan del mismo límite de salida, de modo que el máximo de 1500 no
+describe la extensión de la respuesta visible ---que el propio \textit{system
+prompt} acota a 150 palabras--- sino el presupuesto total del que dispone el
+modelo. Con un límite de 400 la deliberación agotaba el presupuesto y la
+respuesta llegaba vacía. El razonamiento se registra en un campo separado del
+log: no se muestra al usuario y no interviene en la clasificación, puesto que
+un secreto que aparezca allí no ha sido revelado a nadie. El espaciado de 12
+segundos entre llamadas se deriva de los límites de uso del proveedor
+(8000 \textit{tokens} por minuto), no de una decisión experimental.
+
 \begin{table}[t]
 \caption{Configuración del entorno experimental}
 \label{tab:entorno}
 \centering
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{@{}p{2.6cm}p{4.6cm}@{}}
+\begin{tabular}{@{}p{3.0cm}p{4.4cm}@{}}
 \toprule
 \textbf{Parámetro} & \textbf{Valor} \\
 \midrule
-Modelo & [modelo y versión exacta] \\
+Modelo & \texttt{openai/gpt-oss-120b} \\
+Proveedor & Groq (endpoint compatible) \\
 Modo de acceso & API oficial \\
-Temperatura & [valor $>0$; ver Sección III-A] \\
-\textit{Top-p} & [valor] \\
-Máx. tokens de salida & [valor] \\
+Temperatura & 0{,}7 (ver Sección III-A) \\
+\textit{Top-p} & 1{,}0 \\
+Esfuerzo de razonamiento & \texttt{low} (mínimo admitido) \\
+Razonamiento registrado & Sí, en campo aparte \\
+Máx. tokens de salida & 1500 (incluye razonamiento) \\
 Turnos por intento & 1 (\textit{single-turn}) \\
-Repeticiones ($N$) & 5 \\
-Interacciones totales & 400 \\
+Repeticiones ($N$) & 1 (piloto) / 5 (final) \\
+Interacciones totales & 80 (piloto) / 400 (final) \\
+Espaciado entre llamadas & 12 s \\
+Semilla de ejecución & 20260917 \\
+Umbral de $n$-gramas (L5) & 3 \\
 Idioma de interacción & Español \\
-Lenguaje de implementación & Python 3.x \\
-Registro & JSON estructurado por interacción \\
-Periodo de ejecución & [fechas] \\
+Lenguaje de implementación & Python 3.12.14 \\
+Registro & JSONL, una línea por interacción \\
+Periodo de ejecución & Piloto: 18-sep-2026 \\
 \bottomrule
 \end{tabular}
 \end{table}
