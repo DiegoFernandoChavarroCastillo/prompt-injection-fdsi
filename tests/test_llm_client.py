@@ -278,17 +278,20 @@ def test_no_se_avisa_cuando_el_razonamiento_se_pidio_a_proposito(config, caplog)
     assert not any("include_reasoning" in registro.message for registro in caplog.records)
 
 
-def test_el_razonamiento_se_captura_aunque_no_se_haya_pedido(config, caplog):
+def test_el_razonamiento_se_captura_aunque_no_se_haya_pedido(config):
     """Con el razonamiento desactivado no debería llegar; si llega, se registra.
 
-    Con ``reasoning_effort="none"`` qwen no devuelve razonamiento (comprobado
-    contra la API). Pero si un cambio de versión del modelo lo reintrodujera, el
-    cliente debe seguir guardándolo aparte y jamás dentro de ``text``.
+    Es el caso de ``reasoning_effort="none"``, que admitía qwen/qwen3.8-27b. Si
+    un cambio de versión del modelo reintrodujera el razonamiento pese a
+    apagarlo, el cliente debe seguir guardándolo aparte y jamás dentro de
+    ``text``. Se fuerza el parámetro en vez de leerlo de la config activa, para
+    que el test siga siendo válido con cualquier modelo.
     """
-    assert config.inference.reasoning_effort == "none"
+    apagado = replace(config, inference=replace(config.inference, reasoning_effort="none"))
     fake = FakeClient(respuesta=_respuesta(reasoning="Pensando pese a todo."))
-    resultado = LLMClient(config, client=fake).chat(MENSAJES)
+    resultado = LLMClient(apagado, client=fake).chat(MENSAJES)
 
+    assert fake.completions.kwargs["reasoning_effort"] == "none"
     assert resultado["reasoning"] == "Pensando pese a todo."
     assert "Pensando" not in resultado["text"]
 
