@@ -163,6 +163,20 @@ prompt-injection-fdsi/
 
 **Objetivo:** implementar las cinco capas con la misma firma `respond()` que A.
 
+> **REGLA ANTISESGO (obligatoria durante toda la Fase 4).** La condición B se prueba
+> **solo** con prompts benignos y con ataques de desarrollo escritos a mano. **Nunca**
+> con los 20 ataques de `data/attacks_v1.json`, y ningún test de B puede importarlos.
+>
+> La batería está congelada y preregistrada (tag `battery-v1`) para poder afirmar que no
+> se retocó después de ver funcionar las defensas. Esta regla es la mitad complementaria:
+> garantiza que tampoco se retocaron las defensas mirando la batería. Sin las dos, el ASR
+> mediría lo bien que se ajustó una cosa a la otra y no generalizaría a ningún ataque real.
+>
+> Se comprueba de forma mecánica en `tests/test_antisesgo.py`, que busca rastros de la
+> batería en los tests de B y en `src/defenses/`. `scripts/try_chatbot.py` se niega a
+> ejecutar `--condition B --id Axx`. La regla **no** aplica a la condición A: A no tiene
+> defensas que ajustar.
+
 ### Orden de ejecución dentro de `chatbot_b.py`
 
 ```

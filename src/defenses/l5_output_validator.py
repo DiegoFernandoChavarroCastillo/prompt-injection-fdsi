@@ -30,23 +30,35 @@ Estado: STUB (Fase 0). Implementación pendiente en la Fase 4 (rol R3).
 from __future__ import annotations
 
 
-def validate(model_output: str) -> dict:
+def validate_output(text: str) -> dict:
     """Decide si la salida del modelo puede entregarse al usuario.
 
     Args:
-        model_output: texto crudo devuelto por el modelo, sin modificar.
+        text: texto crudo devuelto por el modelo, sin modificar.
 
     Returns:
         dict con las claves:
 
-        * ``blocked`` (bool): ``True`` si la salida se retiene.
-        * ``reason`` (str | None): identificador corto y estable del motivo
-          (p. ej. ``"canary_en_salida"``), o ``None`` si pasó.
-        * ``safe_output`` (str): texto a entregar al usuario: la salida original
-          si pasó, o el mensaje de rechazo si se bloqueó. Nunca debe contener el
-          canary ni fragmentos del system prompt.
+        * ``passed`` (bool): ``True`` si la salida puede entregarse. Ojo con la
+          polaridad: es la inversa de ``blocked`` en
+          :func:`src.defenses.l3_input_filter.check_input`. Aquí ``True`` es el
+          caso bueno.
+        * ``check`` (str | None): identificador corto y estable de la
+          verificación que falló (p. ej. ``"canary_en_salida"``,
+          ``"delimitador_en_salida"``, ``"ngramas_system_prompt"``), o ``None``
+          si pasó. Acaba en ``blocked_by`` como ``"L5:<verificación>"``. Nunca
+          se muestra al usuario: el mensaje de rechazo es idéntico al de L3.
+        * ``details`` (dict): evidencia de la verificación —el n-grama que
+          coincidió, la posición del canary, el umbral aplicado—, para poder
+          auditar la decisión en el Anexo B sin repetir la llamada.
+
+    El texto de reemplazo NO se decide aquí: cuando ``passed`` es ``False``,
+    :mod:`src.chatbot_b` entrega ``prompts/messages.yaml::l5_fallback``, que es
+    idéntico al de L3 para que el usuario no pueda distinguir qué capa actuó.
 
     Raises:
-        NotImplementedError: stub de la Fase 0.
+        NotImplementedError: stub. Se implementa en la Fase 4c.
     """
-    raise NotImplementedError("L5 pendiente: se implementa en la Fase 4.")
+    raise NotImplementedError(
+        "L5 pendiente: validate_output() se implementa en la Fase 4c."
+    )

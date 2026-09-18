@@ -218,7 +218,7 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
 | **2 — Batería de ataques y benignos** | 40 prompts con metadatos, congelados como `v1` y preregistrados (tag `battery-v1`) | ✅ **Hecha** |
 | **3 — Condición A** | Chatbot vulnerable (Listing 1): concatenación plana en un solo mensaje `user` | ✅ **Hecha** |
-| 4 — Condición B | Las cinco capas L1–L5, misma firma `respond()` que A (L4 ya está en `system_B.txt`) | ⬜ Pendiente |
+| 4 — Condición B | **4a hecha**: contexto L1 + L2 + L4 y orquestación del flujo. Pendientes 4b (reglas de L3) y 4c (validador L5) | 🟡 En curso |
 | 5 — Ejecutor y logs | `runner.py`, logs JSONL reprocesables | ⬜ Pendiente |
 | 6 — Clasificador y métricas | Árbol de la Fig. 4 + ASR/FPR/sobrecosto | ⬜ Pendiente |
 | 7 — Corrida piloto (N=1) | 80 interacciones, revisión manual de casos ambiguos, tag `pilot-freeze` | ⬜ Pendiente |
@@ -238,10 +238,20 @@ Todo lo demás son **stubs** con su contrato documentado en el docstring y
 `raise NotImplementedError`: la firma y el formato de retorno ya están acordados, así que
 las fases siguientes pueden avanzar en paralelo sin chocar entre sí.
 
-Ambas condiciones devuelven el **mismo dict de diez claves** (`response`,
-`raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`, `latency_ms`,
-`model_reported`, `truncated`, `reasoning`), para que el runner pueda tratarlas de forma
-intercambiable y las tablas sean comparables.
+Ambas condiciones devuelven el **mismo dict de once claves** (`src.RESPONSE_KEYS`:
+`response`, `raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`,
+`latency_ms`, `model_reported`, `truncated`, `reasoning`, `defense_trace`), para que el
+runner pueda tratarlas de forma intercambiable y las tablas sean comparables.
+
+### Regla antisesgo (Fase 4)
+
+Mientras se construyen las defensas, la **condición B solo se prueba con prompts benignos y
+con ataques de desarrollo escritos a mano** — nunca con los 20 de `data/attacks_v1.json`.
+La batería está congelada para poder afirmar que no se retocó tras ver las defensas; esta
+regla garantiza lo recíproco. Sin las dos, el ASR mediría el ajuste mutuo y no generalizaría.
+
+`tests/test_antisesgo.py` lo comprueba de forma mecánica y `scripts/try_chatbot.py` se niega
+a ejecutar `--condition B --id Axx`. No aplica a la condición A: no tiene defensas que ajustar.
 
 ---
 

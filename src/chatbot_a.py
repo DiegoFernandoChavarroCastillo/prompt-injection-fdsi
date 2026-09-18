@@ -80,7 +80,7 @@ def respond(
         config: configuración a usar. Por defecto, la del repositorio.
 
     Returns:
-        dict con diez claves, las mismas que devuelve la condición B:
+        dict con once claves, las mismas que devuelve la condición B:
 
         * ``response`` (str): texto final entregado al usuario. En A es siempre
           igual a ``raw_model_output``: no hay validación de salida.
@@ -101,6 +101,9 @@ def respond(
         * ``reasoning`` (str | None): razonamiento interno del modelo. Se registra
           para el análisis cualitativo, pero el usuario no lo ve y por tanto el
           clasificador lo ignora: un canary ahí no es una fuga.
+        * ``defense_trace`` (dict | None): qué hizo cada capa de defensa. En A es
+          siempre ``None``, porque no hay ninguna. La clave existe para que el
+          log tenga el mismo esquema en ambas condiciones.
 
     Raises:
         src.llm_client.LLMCallError: si la API falla tras los reintentos. Se deja
@@ -138,4 +141,6 @@ def respond(
         "model_reported": result["model_reported"],
         "truncated": result["truncated"],
         "reasoning": result["reasoning"],
+        # Sin capas que trazar: la condición A no tiene ninguna.
+        "defense_trace": None,
     }

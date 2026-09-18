@@ -14,27 +14,15 @@ from __future__ import annotations
 
 import pytest
 
+from src import RESPONSE_KEYS
 from src.battery import load_attacks
 from src.chatbot_a import ASSISTANT_TAG, USER_TAG, build_prompt, respond
 from src.config import load_config
 from src.llm_client import LLMCallError
 from src.prompts import load_prompts
 
-#: Las diez claves que deben devolver por igual la condición A y la B.
-#: Es el esquema del log: si A y B devolvieran claves distintas, el runner no
-#: podría tratarlas de forma intercambiable y las tablas no serían comparables.
-CLAVES_DEL_CONTRATO = {
-    "response",
-    "raw_model_output",
-    "blocked_by",
-    "sent_context",
-    "tokens_in",
-    "tokens_out",
-    "latency_ms",
-    "model_reported",
-    "truncated",
-    "reasoning",
-}
+#: Las once claves del contrato, compartidas por ambas condiciones.
+CLAVES_DEL_CONTRATO = RESPONSE_KEYS
 
 
 class FakeLLMClient:
@@ -201,6 +189,12 @@ def test_el_dict_tiene_exactamente_las_claves_del_contrato(prompts, config):
     """Ni una clave de más ni de menos: es el esquema del log."""
     resultado, _ = _responder(prompts, config, "hola")
     assert set(resultado) == CLAVES_DEL_CONTRATO
+
+
+def test_la_condicion_a_no_tiene_traza_de_defensas(prompts, config):
+    """``defense_trace`` es ``None`` en A: no hay ninguna capa que trazar."""
+    resultado, _ = _responder(prompts, config, "hola")
+    assert resultado["defense_trace"] is None
 
 
 def test_la_telemetria_viene_del_cliente_llm(prompts, config):
