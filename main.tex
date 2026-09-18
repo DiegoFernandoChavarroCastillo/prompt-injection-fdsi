@@ -10,6 +10,7 @@
 \usepackage{amssymb}      % necesario para \mathbb
 \usepackage{booktabs}
 \usepackage{longtable}    % anexos: tablas que se parten entre páginas
+\usepackage{placeins}     % \FloatBarrier: impide que las tablas migren de sección
 \usepackage{array}
 \usepackage{multirow}
 \usepackage{tabularx}
@@ -33,16 +34,43 @@
 \emergencystretch=2em
 
 \title{Diseño y Evaluación de Mecanismos de Defensa contra Inyección Directa de Instrucciones en Asistentes Virtuales}
-\author{Laura Alejandra Venegas Piraban, David Palacios, Diego Fernando Chavarro}
+\author{%
+  Laura Alejandra Venegas Piraban, David Palacios, Diego Fernando Chavarro \\[2pt]
+  \normalsize Programa de Ingeniería de Sistemas, Escuela Colombiana de Ingeniería Julio Garavito \\
+  \normalsize Bogotá, Colombia \\[2pt]
+  \normalsize Fundamentos de Seguridad de la Información \\[2pt]
+  % COMPLETAR: sustituir cada [correo] por la dirección institucional correspondiente.
+  \normalsize \texttt{[correo]} \quad \texttt{[correo]} \quad \texttt{[correo]}%
+}
 \date{Septiembre de 2026}
 
 \begin{document}
 \maketitle
 
+% REVISAR CON EL EQUIPO
+% PENDIENTE: este resumen es PROVISIONAL y se reescribirá al final, cuando
+% existan los resultados de la corrida definitiva (N=5). Debe responder:
+% (1) qué problema se aborda, (2) qué se hizo, (3) qué se encontró (ASR
+% antes/después y FPR), (4) qué se concluye.
 \begin{abstract}
-% PENDIENTE: escribir de último, cuando existan los resultados (150-250 palabras).
-% Debe responder: (1) qué problema se aborda, (2) qué se hizo, (3) qué se
-% encontró (ASR antes/después y FPR), (4) qué se concluye.
+\textit{(Versión preliminar.)} La inyección directa de instrucciones encabeza la
+lista de riesgos de OWASP para aplicaciones basadas en modelos de lenguaje, pero
+la literatura rara vez compara un sistema desprotegido con uno defendido bajo
+condiciones idénticas. Este trabajo construye esa comparación: dos asistentes de
+atención al cliente que resuelven la misma tarea con el mismo modelo y los mismos
+parámetros de inferencia, uno sin defensas de aplicación y otro con una
+arquitectura de cinco capas ---delimitación estructural, refuerzo por enmarcado,
+filtrado de entrada, protección anti-extracción y validación de salida---,
+enfrentados a una batería de 20 ataques en cinco categorías y a 20 consultas
+legítimas. La batería se congeló antes de implementar las defensas, y las
+defensas se construyeron sin acceso a ella. En una corrida piloto de 80
+interacciones, la tasa de éxito de los ataques pasó del 15\,\% en la línea base al
+0\,\% en la condición protegida, sin que ninguna consulta legítima resultara
+bloqueada en ninguna de las dos. Estos resultados son preliminares: proceden de
+una sola repetición por \textit{prompt} ($N=1$), de modo que no permiten
+distinguir un comportamiento estable de una variación puntual del modelo. Se
+observa además que la línea base rechazó por sí sola 17 de los 20 ataques, muy por
+encima de lo que reporta la literatura previa.
 \end{abstract}
 
 \noindent\textbf{Index Terms}—prompt injection, large language models, chatbot security, adversarial prompting, LLM guardrails.
@@ -59,7 +87,7 @@ El estudio de este fenómeno fue formalizado por Perez y Ribeiro \cite{ref1}, qu
 
 Para hacer frente a esto, la literatura reciente ha propuesto un abanico de estrategias defensivas. Algunas se basan en la separación estructural de datos mediante formatos específicos \cite{ref6}, mientras que otras apuestan por entrenar al modelo para respetar una jerarquía de instrucciones \cite{ref7}, aplicar técnicas de \textit{spotlighting} para marcar el texto no confiable \cite{ref8} o exigir firmas criptográficas en las instrucciones válidas \cite{ref9}. No obstante, existe un consenso en la comunidad: debido a la propia naturaleza estocástica de los LLM, ninguna defensa por sí sola es infalible. Técnicas tradicionales como el simple filtrado de palabras clave o el uso básico de delimitadores resultan insuficientes cuando operan de manera aislada \cite{ref9}.
 
-A pesar de la abundante investigación, notamos un vacío importante en la literatura práctica. La mayoría de los estudios evalúan ataques o defensas de forma aislada, sin ofrecer una comparación controlada y directa entre un sistema vulnerable y uno protegido frente al mismo conjunto de amenazas. Esta simetría experimental es vital, especialmente en entornos de desarrollo aplicado, para demostrar con métricas reales cuál es el verdadero valor agregado de implementar capas de seguridad.
+A pesar de la abundante investigación, notamos un vacío importante en la literatura práctica. La mayoría de los estudios evalúan ataques o defensas de forma aislada, sin ofrecer una comparación controlada y directa entre un sistema sin defensas de aplicación y uno protegido frente al mismo conjunto de amenazas. Esta simetría experimental es vital, especialmente en entornos de desarrollo aplicado, para demostrar con métricas reales cuál es el verdadero valor agregado de implementar capas de seguridad.
 
 Por ello, el objetivo de este artículo es diseñar, implementar y evaluar comparativamente dos asistentes conversacionales basados en LLM: una línea base sin defensas de aplicación y una versión protegida, equipada con una arquitectura de mitigación en capas. Las principales contribuciones de este trabajo se resumen a continuación:
 
@@ -77,6 +105,7 @@ El resto de este artículo se estructura de la siguiente manera: la Sección II 
 % .......................TRABAJOS RELACIONADOS
 \section{Trabajos Relacionados}
 \subsection{Fundamentos de los modelos de lenguaje grande y su superficie de ataque}
+\label{sec:superficie}
 
 Los LLM actuales están construidos sobre arquitecturas \textit{Transformer}, donde el mecanismo de autoatención (\textit{self-attention}) asimila todos los tokens de entrada como un único bloque continuo. Esto significa que el modelo no cuenta con una barrera nativa que distinga entre las directrices del sistema, la información recuperada y el texto introducido por el usuario \cite{ref3}. A diferencia del software tradicional, que aísla estrictamente el código de los datos mediante estrategias como consultas parametrizadas o anillos de privilegio en el sistema operativo, los LLM carecen de una frontera de confianza equivalente en su diseño central \cite{ref11}. Es crucial entender que esto no representa un simple error de programación (o \textit{bug}) solucionable con un parche, sino que es una característica intrínseca del procesamiento de lenguaje natural: para la red neuronal, una instrucción legítima y un texto a procesar pueden verse sintácticamente idénticos \cite{ref11}.
 
@@ -114,13 +143,13 @@ Finalmente, desde la perspectiva de autenticación, Suo \cite{ref9} propuso el e
 
 Aunque la revisión de la literatura refleja un avance notable tanto en la caracterización de los ataques de inyección directa \cite{ref1}, \cite{ref2}, \cite{ref10} como en el desarrollo de mecanismos de defensa específicos \cite{ref6}, \cite{ref7}, \cite{ref8}, \cite{ref9}, una mirada crítica a la metodología experimental empleada en estos trabajos revela tres grandes vacíos que motivan esta investigación.
 
-En primer lugar, prevalece una evaluación aislada de las propuestas. Por un lado, las investigaciones centradas en vulnerabilidades \cite{ref1}, \cite{ref10} suelen catalogar técnicas de ataque sin medir sistemáticamente su impacto contra sistemas fortificados. Por otro lado, los estudios enfocados en defensas \cite{ref6}, \cite{ref7}, \cite{ref8}, \cite{ref9} acostumbran validar sus soluciones utilizando conjuntos de ataque diseñados a la medida, omitiendo la comparación directa contra una línea base vulnerable bajo condiciones idénticas.
+En primer lugar, prevalece una evaluación aislada de las propuestas. Por un lado, las investigaciones centradas en vulnerabilidades \cite{ref1}, \cite{ref10} suelen catalogar técnicas de ataque sin medir sistemáticamente su impacto contra sistemas fortificados. Por otro lado, los estudios enfocados en defensas \cite{ref6}, \cite{ref7}, \cite{ref8}, \cite{ref9} acostumbran validar sus soluciones utilizando conjuntos de ataque diseñados a la medida, omitiendo la comparación directa contra una línea base sin defensas de aplicación bajo condiciones idénticas.
 
 En segundo lugar, existe una notable escasez de diseños experimentales \textit{simétricos}. Rara vez se somete un mismo catálogo de ataques, organizado en categorías tácticas claras, a dos versiones de un único sistema: una desprotegida y otra protegida. Esta simetría es fundamental en entornos de desarrollo aplicado. No basta con demostrar que una defensa mitiga un ataque en términos absolutos; es imperativo cuantificar su valor añadido contrastándola directamente con un entorno base idéntico.
 
 En tercer lugar, la mayoría de los estudios priorizan la reducción de la Tasa de Éxito de Ataque (ASR) como única métrica de victoria \cite{ref5}, ignorando el costo que esto representa para la usabilidad. Aunque autores como Suo \cite{ref9} reconocen explícitamente la fricción que existe entre asegurar un sistema y mantenerlo funcional, son muy pocos los trabajos empíricos que miden la tasa de falsos positivos, es decir, cuántas peticiones legítimas son bloqueadas erróneamente por las defensas.
 
-Para resolver estas tres brechas metodológicas, nuestra investigación propone un experimento simétrico integral. Diseñamos e implementamos dos asistentes conversacionales: uno vulnerable y otro respaldado por una arquitectura de defensa en capas. Ambos sistemas se enfrentan exactamente a la misma batería de 20 ataques de inyección directa, distribuidos en cinco categorías tácticas según los lineamientos de OWASP \cite{ref3}. Al evaluar de manera simultánea la efectividad de las mitigaciones (ASR) \cite{ref5} y su impacto en la usabilidad (falsos positivos), este trabajo aporta evidencia empírica y reproducible sobre la verdadera utilidad de cada capa defensiva frente a amenazas específicas.
+Para resolver estas tres brechas metodológicas, nuestra investigación propone un experimento simétrico integral. Diseñamos e implementamos dos asistentes conversacionales: uno sin defensas de aplicación y otro respaldado por una arquitectura de defensa en capas. Ambos sistemas se enfrentan exactamente a la misma batería de 20 ataques de inyección directa, distribuidos en cinco categorías tácticas según los lineamientos de OWASP \cite{ref3}. Al evaluar de manera simultánea la efectividad de las mitigaciones (ASR) \cite{ref5} y su impacto en la usabilidad (falsos positivos), este trabajo aporta evidencia empírica y reproducible sobre la verdadera utilidad de cada capa defensiva frente a amenazas específicas.
 
 
 % =====================================================================
@@ -174,7 +203,7 @@ no como resultados binarios por ataque.
 La Fig.~\ref{fig:pipeline} resume el flujo experimental completo, desde la
 construcción de la batería hasta el cálculo de métricas.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}[
   font=\scriptsize,
@@ -239,7 +268,7 @@ detección sin recurrir a juicio subjetivo.
 La Tabla~\ref{tab:politicas} enumera las políticas del asistente y el
 comportamiento observable que evidencia su violación.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{Políticas del asistente y evidencia de violación}
 \label{tab:politicas}
 \centering
@@ -310,7 +339,7 @@ sostienen: la línea base rechaza por su cuenta la mayoría de los ataques
 clásicos. Lo que el experimento manipula, y lo único que puede atribuirse a la
 condición, es la presencia o ausencia de las cinco capas.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}[
   font=\scriptsize,
@@ -378,21 +407,26 @@ del sistema donde una decisión no depende del comportamiento del LLM.
     analogía directa es la consulta parametrizada en bases de datos, donde
     el dato jamás puede reinterpretarse como comando.
 
-    \item[] \textit{Nota de implementación:} el recordatorio de L2 se
-    reinyecta dentro del mismo mensaje \texttt{user}, inmediatamente después
-    del delimitador de cierre del bloque de datos. De este modo la última
-    instrucción presente en el contexto procede del operador y no del
-    cliente. Si la entrada del usuario contiene una marca con la forma de un
-    delimitador ---en cualquier variante de mayúsculas, espaciado o
-    identificador--- se sustituye por un marcador neutro antes de
-    encapsularla, para que no pueda cerrar el bloque de datos y escribir
-    fuera de él.
+    \textit{Implementación:} si la entrada del cliente contiene una marca con
+    la forma de un delimitador ---en cualquier variante de mayúsculas,
+    espaciado o identificador--- se sustituye por un marcador neutro antes de
+    encapsularla, para que no pueda cerrar el bloque de datos y escribir fuera
+    de él. Sin esa sustitución, la delimitación sería puramente nominal: al
+    atacante le bastaría con escribir el propio delimitador para salir del
+    bloque, del mismo modo que una consulta parametrizada mal escapada permite
+    cerrar la cadena e inyectar SQL.
 
     \item \textbf{L2 --- Refuerzo por enmarcado (\textit{sandwich
     defense}).} La instrucción legítima se repite después del bloque de
     datos del usuario, de modo que la última directiva presente en el
     contexto sea siempre la del sistema, reduciendo el efecto de
     recencia que explotan los ataques de sobrescritura.
+
+    \textit{Implementación:} el recordatorio se reinyecta dentro del
+    \emph{mismo} mensaje \texttt{user}, inmediatamente después del delimitador
+    de cierre del bloque de datos, y no como un mensaje adicional. De este modo
+    la última instrucción presente en el contexto procede del operador y no del
+    cliente.
 
     \item \textbf{L3 --- Validación y filtrado de entrada.} Un
     preprocesador normaliza la entrada (homóglifos, caracteres de ancho
@@ -416,7 +450,7 @@ del sistema donde una decisión no depende del comportamiento del LLM.
     sustituye por un mensaje de \textit{fallback}.
 \end{itemize}
 
-\begin{figure*}[t]
+\begin{figure*}[!tp]
 \centering
 \begin{tikzpicture}[
   font=\scriptsize,
@@ -437,7 +471,7 @@ del sistema donde una decisión no depende del comportamiento del LLM.
   {\textbf{L4} Restricción anti-\textit{leaking} + \textit{few-shot} de rechazo};
 \node[seg, fill=black!12, below=0pt of l4] (l1)
   {\textbf{L1} \texttt{\textless\textless\textless USER\_DATA\textgreater\textgreater\textgreater}\\ entrada del usuario delimitada
-   \\\texttt{\textless\textless/USER\_DATA\textgreater\textgreater\textgreater}};
+   \\\texttt{\textless\textless\textless/USER\_DATA\textgreater\textgreater\textgreater}};
 \node[seg, fill=white, below=0pt of l1] (l2b)
   {\textbf{L2} Instrucción reforzada (post)};
 
@@ -495,7 +529,7 @@ La Tabla~\ref{tab:comparacion} contrasta ambas condiciones dimensión por
 dimensión y evidencia que las diferencias se concentran exclusivamente en
 la capa de seguridad, preservando la simetría experimental.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{Comparación entre las condiciones A y B}
 \label{tab:comparacion}
 \centering
@@ -527,7 +561,7 @@ partir de técnicas documentadas en la literatura
 Tabla~\ref{tab:ataques} presenta el catálogo; los payloads completos se
 incluyen en el Anexo A.
 
-\begin{table*}[t]
+\begin{table*}[!tp]
 \caption{Batería de ataques de inyección directa}
 \label{tab:ataques}
 \centering
@@ -588,7 +622,7 @@ cada capa de defensa con las categorías de ataque que pretende mitigar.
 Esta correspondencia constituye la hipótesis operativa del experimento y
 será contrastada con los resultados empíricos en la Sección V.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{Matriz de cobertura defensa--categoría de ataque}
 \label{tab:cobertura}
 \centering
@@ -671,7 +705,7 @@ revisores y $p_e$ la proporción de acuerdo esperado por azar. Valores
 superiores a $0{,}80$ se interpretan convencionalmente como acuerdo
 fuerte.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{Rúbrica de clasificación de resultados}
 \label{tab:rubrica}
 \centering
@@ -701,7 +735,7 @@ sin resolver. Dado que la distinción es de grado y no de tipo, el
 clasificador automático no la decide por su cuenta: marca los casos
 candidatos y los deriva a revisión humana.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}[
   font=\scriptsize,
@@ -776,7 +810,7 @@ un secreto que aparezca allí no ha sido revelado a nadie. El espaciado de 12
 segundos entre llamadas se deriva de los límites de uso del proveedor
 (8000 \textit{tokens} por minuto), no de una decisión experimental.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{Configuración del entorno experimental}
 \label{tab:entorno}
 \centering
@@ -874,15 +908,26 @@ novedosa y se alinea con las prácticas de divulgación responsable
 habituales en investigación en seguridad.
 
 
+\FloatBarrier
+
 \section{Resultados}
+
+Esta sección recoge los resultados de la corrida piloto. Los de la corrida
+definitiva ($N=5$) se incorporarán en la entrega final.
 
 \input{docs/seccion_IV_piloto}
 
+\FloatBarrier
+
 \section{Discusión}
 
-\section{Conclusiones y trabajo futuro}
+\textit{La discusión completa se desarrollará con los resultados de la corrida
+definitiva ($N=5$). Lo que sigue son las limitaciones que el diseño y la corrida
+piloto ya permiten identificar, y que condicionan la lectura de cualquier
+resultado posterior.}
 
 \subsection{Limitaciones}
+\label{sec:limitaciones}
 
 Dos limitaciones condicionan la lectura de los resultados preliminares y
 orientan el trabajo pendiente.
@@ -894,8 +939,10 @@ interceptaciones de la condición B se produjeron íntegramente en L3, el filtro
 de entrada, antes de que L1, L2 y L4 llegaran siquiera a construir el contexto;
 y L5 no llegó a intervenir en ninguna interacción. De ahí no se sigue que las
 cuatro capas restantes sean prescindibles ---A10 ofrece un indicio en sentido
-contrario, pues sorteó L3 y aun así fue rechazado en la condición B--- sino que
-este diseño no puede pronunciarse sobre ellas con la evidencia disponible. Dos hipótesis quedan abiertas y son indistinguibles
+contrario, pues sorteó L3 y aun así fue rechazado en la condición B, aunque ese
+mismo ataque se comportó de forma distinta en dos ejecuciones y con $N=1$ el
+indicio no es concluyente--- sino que este diseño no puede pronunciarse sobre
+ellas con la evidencia disponible. Dos hipótesis quedan abiertas y son indistinguibles
 con los datos disponibles: que L3 intercepte los mismos ataques que L5 habría
 detectado, o que el modelo no llegara a producir nada que L5 pudiera retener.
 Resolverlo requiere un \textbf{estudio de ablación por capas}, ejecutando la
@@ -904,9 +951,10 @@ multiplica el número de condiciones pero es la única forma de asignar mérito 
 cada mecanismo. Es la línea de trabajo futuro más inmediata.
 
 \textbf{La línea base resultó mucho menos vulnerable de lo que reporta la
-literatura.} Los trabajos que documentan estas técnicas \cite{ref1},
-\cite{ref10} describen tasas de éxito sustancialmente mayores que el 15\,\%
-observado aquí contra la condición A. La explicación más plausible es la
+literatura.} El análisis sistemático citado en la Sección~\ref{sec:superficie}
+reporta tasas de efectividad de ataque superiores al 90\,\% en modelos sin
+protección \cite{ref4}, muy por encima del 15\,\% observado aquí contra la
+condición A. La explicación más plausible es la
 diferencia generacional: esos resultados se obtuvieron sobre modelos anteriores,
 y el alineamiento de los modelos actuales absorbe por sí solo buena parte de los
 ataques clásicos, en particular los que operan por persuasión. Esto tiene dos
@@ -920,7 +968,12 @@ funcionaron apuntan hacia dónde mirar, pues ambos comparten un mecanismo que no
 depende de persuadir al modelo sino de \emph{falsificar autoridad de sistema}
 dentro del canal de texto.
 
+\section{Conclusiones y trabajo futuro}
 
+\textit{Pendiente para la entrega final.} Las conclusiones requieren los
+resultados de la corrida definitiva ($N=5$, 400 interacciones) y la auditoría
+manual independiente con el índice $\kappa$ de Cohen, ambas descritas en la
+Sección~\ref{sec:limitaciones}.
 
 \section*{Disponibilidad de código y datos}
 
@@ -949,23 +1002,21 @@ implementar el código del experimento. El diseño experimental, la revisión de
 decisiones metodológicas y la interpretación de los resultados son
 responsabilidad de los autores.
 
+\FloatBarrier
+
 % .............................REFERENCIAS
 \begin{thebibliography}{00}
+\bibitem{ref4}
+T. Geng, Z. Xu, Y. Qu, and W. E. Wong, ``Prompt Injection Attacks on Large Language Models: A Survey of Attack Methods, Root Causes, and Defense Strategies,'' \textit{Computers, Materials \& Continua}, vol. 87, no. 1, 2026. doi: 10.32604/cmc.2025.074081.
+
+\bibitem{ref3}
+OWASP Foundation, ``OWASP Top 10 for LLM Applications 2025,'' OWASP GenAI Security Project, 2025. [Online]. Available: \url{https://owasp.org/www-project-top-10-for-large-language-model-applications/}
 
 \bibitem{ref1}
 F. Perez and I. Ribeiro, ``Ignore Previous Prompt: Attack Techniques For Language Models,'' \textit{arXiv preprint arXiv:2211.09527}, 2022.
 
 \bibitem{ref2}
 K. Greshake, S. Abdelnabi, S. Mishra, C. Endres, T. Holz, and M. Fritz, ``Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection,'' in \textit{Proc. 16th ACM Workshop on Artificial Intelligence and Security (AISec)}, 2023, pp. 79--90.
-
-\bibitem{ref3}
-OWASP Foundation, ``OWASP Top 10 for LLM Applications 2025,'' OWASP GenAI Security Project, 2025. [Online]. Available: \url{https://owasp.org/www-project-top-10-for-large-language-model-applications/}
-
-\bibitem{ref4}
-T. Geng, Z. Xu, Y. Qu, and W. E. Wong, ``Prompt Injection Attacks on Large Language Models: A Survey of Attack Methods, Root Causes, and Defense Strategies,'' \textit{Computers, Materials \& Continua}, vol. 87, no. 1, 2026. doi: 10.32604/cmc.2025.074081.
-
-\bibitem{ref5}
-Y. Liu, Y. Jia, R. Geng, J. Jia, and N. Z. Gong, ``Formalizing and Benchmarking Prompt Injection Attacks and Defenses,'' in \textit{Proc. USENIX Security Symposium}, 2024.
 
 \bibitem{ref6}
 S. Chen, J. Piet, C. Sitawarin, and D. Wagner, ``StruQ: Defending Against Prompt Injection with Structured Queries,'' in \textit{Proc. USENIX Security Symposium}, 2025.
@@ -982,11 +1033,14 @@ X. Suo, ``Signed-Prompt: A New Approach to Prevent Prompt Injection Attacks Agai
 \bibitem{ref10}
 S. Schulhoff, J. Pinto, A. Khan, L.-F. Bouchard, C. Si, S. Anati, V. Tagliabue, A. Kost, C. Carnahan, and J. Boyd-Graber, ``Ignore This Title and HackAPrompt: Exposing Systemic Vulnerabilities of LLMs Through a Global Scale Prompt Hacking Competition,'' in \textit{Proc. 2023 Conf. Empirical Methods in Natural Language Processing (EMNLP)}, 2023, pp. 4945--4977.
 
-\bibitem{ref12}
-OpenAI, ``gpt-oss-120b \& gpt-oss-20b Model Card,'' \textit{arXiv preprint arXiv:2508.10925}, 2025.
+\bibitem{ref5}
+Y. Liu, Y. Jia, R. Geng, J. Jia, and N. Z. Gong, ``Formalizing and Benchmarking Prompt Injection Attacks and Defenses,'' in \textit{Proc. USENIX Security Symposium}, 2024.
 
 \bibitem{ref11}
 F. Aguilera and F. Berzal, ``LLM Security: Vulnerabilities, Attacks, Defenses, and Countermeasures,'' \textit{arXiv preprint arXiv:2505.01177}, 2025.
+
+\bibitem{ref12}
+OpenAI, ``gpt-oss-120b \& gpt-oss-20b Model Card,'' \textit{arXiv preprint arXiv:2508.10925}, 2025.
 
 \end{thebibliography}
 

@@ -306,6 +306,16 @@ incluye la corrección de B-02. Desde aquí no se modifica `src/`, `prompts/` ni
 Estado del repositorio en el momento de la entrega intermedia. No congela nada
 por sí mismo: sirve para poder citar con exactitud qué se entregó.
 
+**El tag `entrega-2` se moverá una única vez**, justo antes de presentar la
+entrega, para que incluya el PDF compilado del artículo
+(`docs/articulo_entrega2.pdf`) y las correcciones derivadas de revisarlo. El
+motivo de moverlo en vez de dejarlo donde está: `entrega-2` debe nombrar lo que
+efectivamente se entrega, y un tag que apunte a una versión anterior al PDF
+señalaría un estado que nadie va a leer. Es seguro hacerlo porque esta etiqueta,
+a diferencia de las otras tres, **no garantiza ninguna propiedad metodológica**:
+no congela la batería ni el código, solo marca el estado entregado. Las otras
+tres no se mueven nunca.
+
 Las tres etiquetas que sí garantizan algo son las anteriores:
 **`battery-v1`** (`b5e83d2`), **`pilot-freeze`** (`cbce3dd`)
 y **`final-freeze`** (`afd49bd`).

@@ -27,6 +27,7 @@ No llama a la API y no consume cuota.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import unicodedata
 from pathlib import Path
@@ -122,11 +123,42 @@ CIERRE = r"""
 """
 
 
+#: A partir de esta longitud, una secuencia sin espacios se considera imposible
+#: de componer dentro de una columna estrecha.
+LARGO_SIN_CORTE = 28
+
+#: Cada cuántos caracteres se ofrece un punto de corte dentro de esas secuencias.
+PASO_DE_CORTE = 18
+
+
+def _permitir_cortes(texto: str) -> str:
+    """Ofrece puntos de corte dentro de las secuencias largas sin espacios.
+
+    Una carga en Base64 es una sola «palabra» de más de cien caracteres. LaTeX no
+    puede partirla en ningún sitio, así que la saca del margen y el payload
+    aparece truncado en el PDF. Se insertan ``\\allowbreak`` cada pocos
+    caracteres: son puntos donde LaTeX *puede* cortar, sin guión y sin alterar el
+    texto compuesto. Se usa ``\\allowbreak`` y no el paquete ``seqsplit`` para no
+    añadir dependencias al preámbulo del artículo.
+    """
+    def trocear(match: "re.Match[str]") -> str:
+        palabra = match.group(0)
+        trozos = [palabra[i : i + PASO_DE_CORTE] for i in range(0, len(palabra), PASO_DE_CORTE)]
+        return r"\allowbreak{}".join(trozos)
+
+    return re.sub(rf"\S{{{LARGO_SIN_CORTE},}}", trocear, texto)
+
+
 def escapar(texto: str) -> str:
-    """Escapa ``texto`` para LaTeX y convierte los saltos de línea en ``\\newline``."""
+    """Escapa ``texto`` para LaTeX y convierte los saltos de línea en ``\\newline``.
+
+    Las secuencias muy largas sin espacios reciben puntos de corte, para que no
+    desborden la columna (ver :func:`_permitir_cortes`).
+    """
     lineas = [linea.strip() for linea in texto.split("\n")]
     lineas = [linea for linea in lineas if linea]
-    return r"\newline ".join(linea.translate(_LATEX_ESCAPES) for linea in lineas)
+    escapadas = (_permitir_cortes(linea.translate(_LATEX_ESCAPES)) for linea in lineas)
+    return r"\newline ".join(escapadas)
 
 
 def es_imprimible(texto: str) -> bool:

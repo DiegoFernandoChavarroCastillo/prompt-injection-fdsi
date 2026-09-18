@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import re
 import sys
 from pathlib import Path
 
@@ -41,15 +42,22 @@ TITULO = "System Prompts de los Chatbots"
 #: El mapa ``literate`` los traduce uno a uno y evita depender de la
 #: configuración del preámbulo del artículo.
 LITERATE = (
+    # Cada macro sin argumentos lleva {} detrás. Sin esas llaves, TeX se come el
+    # espacio que sigue al nombre de la macro al escanearlo, y
+    # "[SEGURIDAD — ENTRADA DEL USUARIO]" se compone como
+    # "[SEGURIDAD —ENTRADA DEL USUARIO]". El Anexo B tiene que reproducir el
+    # texto exacto que recibió el modelo, así que un espacio perdido importa.
+    #
+    # Ojo también con « y »: NO pueden mapearse a "<<" y ">>", porque babel con
+    # la opción spanish transforma precisamente esas secuencias en guillemets y
+    # el reemplazo se reexpandiría. Las macros son inertes.
     r"{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 "
     r"{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 "
-    r'{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1 '
-    # Ojo: « y » NO pueden mapearse a "<<" y ">>". babel con la opción spanish
-    # convierte esas dos secuencias en guillemets, así que el reemplazo se
-    # reexpandiría. Se usan las macros de LaTeX, que son inertes.
-    r"{¿}{{\textquestiondown}}1 {¡}{{\textexclamdown}}1 "
-    r"{«}{{\guillemotleft}}1 {»}{{\guillemotright}}1 "
-    r"{—}{{\textemdash}}1 {…}{{\textellipsis}}1"
+    r"{ñ}{{\~n}}1 {Ñ}{{\~N}}1 "
+    r'{ü}{{\"u}}1 {Ü}{{\"U}}1 '
+    r"{¿}{{\textquestiondown{}}}1 {¡}{{\textexclamdown{}}}1 "
+    r"{«}{{\guillemotleft{}}}1 {»}{{\guillemotright{}}}1 "
+    r"{—}{{\textemdash{}}}1 {–}{{\textendash{}}}1 {…}{{\textellipsis{}}}1"
 )
 
 CABECERA = r"""% docs/anexo_B.tex — Anexo B: system prompts de las dos condiciones.
@@ -84,11 +92,61 @@ def bloque(titulo: str, contenido: str, etiqueta: str) -> str:
         f"\n\\subsection*{{{titulo}}}\n"
         f"\\label{{{etiqueta}}}\n\n"
         "\\begin{lstlisting}[basicstyle=\\ttfamily\\scriptsize, breaklines=true,\n"
-        "                   breakatwhitespace=false, columns=fullflexible,\n"
+        "                   breakatwhitespace=true, columns=fullflexible,\n"
         f"                   extendedchars=true, literate={LITERATE}]\n"
         f"{contenido.rstrip()}\n"
         "\\end{lstlisting}\n"
     )
+
+
+def verificar_exactitud(destino: Path, prompts, config) -> list[str]:
+    """Comprueba que el anexo reproduce los prompts carácter por carácter.
+
+    El Anexo B afirma publicar «el texto exacto que recibió el modelo». Esa
+    afirmación hay que poder comprobarla, no solo declararla: un mapeo mal
+    escrito en ``literate``, un escape de más o un salto de línea perdido la
+    convertirían en falsa sin que nada avisara.
+
+    Se extraen los bloques ``lstlisting`` del archivo generado y se comparan con
+    los archivos de ``prompts/``. ``listings`` es verbatim, de modo que el
+    contenido del bloque debe coincidir byte a byte con el original; ``literate``
+    solo afecta a cómo se compone, no a lo que hay escrito.
+
+    Returns:
+        Lista de discrepancias. Vacía si todo coincide.
+    """
+    texto = destino.read_text(encoding="utf-8")
+    bloques = re.findall(
+        r"\\begin\{lstlisting\}\[[^\]]*\]\n(.*?)\n\\end\{lstlisting\}", texto, re.S
+    )
+    esperados = [
+        ("system_A.txt", prompts.system_A),
+        ("system_B.txt", prompts.system_B),
+        ("l2_reminder.txt", prompts.l2_reminder),
+    ]
+    problemas = []
+    if len(bloques) < len(esperados):
+        return [f"se esperaban al menos {len(esperados)} bloques y hay {len(bloques)}"]
+
+    for (nombre, original), bloque in zip(esperados, bloques):
+        # El exportador escribe el contenido con rstrip(); se compara contra el
+        # original tratado igual, para no señalar como error un salto final.
+        if bloque != original.rstrip():
+            problemas.append(f"{nombre}: el bloque del anexo no coincide con el original")
+            for i, (a, b) in enumerate(zip(original.rstrip(), bloque)):
+                if a != b:
+                    problemas.append(
+                        f"    primera diferencia en el carácter {i}: "
+                        f"original {a!r} (U+{ord(a):04X}) vs anexo {b!r} (U+{ord(b):04X})"
+                    )
+                    problemas.append(f"    contexto original: ...{original[max(0, i - 30):i + 30]!r}")
+                    break
+            else:
+                problemas.append(
+                    f"    longitudes distintas: original {len(original.rstrip())}, "
+                    f"anexo {len(bloque)}"
+                )
+    return problemas
 
 
 def main() -> int:
@@ -158,7 +216,16 @@ def main() -> int:
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text("".join(partes), encoding="utf-8")
 
+    problemas = verificar_exactitud(destino, prompts, config)
+    if problemas:
+        print("[ERROR] El anexo NO reproduce los prompts carácter por carácter:",
+              file=sys.stderr)
+        for linea in problemas:
+            print(f"  {linea}", file=sys.stderr)
+        return 1
+
     print(f"Anexo B escrito en {destino.relative_to(config.project_root)}")
+    print("  verificado carácter por carácter contra prompts/ ✓")
     print(f"  bloques añadidos por B: {bloques_anadidos}")
     print(f"  líneas de LaTeX: {len(destino.read_text(encoding='utf-8').splitlines())}")
     return 0

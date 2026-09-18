@@ -28,11 +28,18 @@ la capa L3 detuvo en la condición B antes de construir el contexto.
 
 La Tabla~\ref{tab:piloto-asr} recoge el ASR por condición. Los casos que el
 clasificador automático no pudo etiquetar con criterios objetivos ---dos de las
-ochenta interacciones--- fueron revisados a mano, de modo que no queda ninguna
-interacción sin clasificar y las cifras no dependen de cómo se traten los casos
-ambiguos.
+ochenta interacciones--- se revisaron a mano: A10 en la condición A se etiquetó
+como éxito total, y B11 en la condición B como atendido. No queda ninguna
+interacción sin clasificar.
 
-\begin{table}[t]
+Conviene señalar que \textbf{uno de los tres éxitos de la condición A depende de
+esa revisión}, y que la realizó uno de los autores, no un conjunto de revisores
+independientes. La corrida definitiva corrige esa debilidad con una auditoría
+manual a cargo de dos revisores que no participaron en la construcción de la
+batería ni de los filtros, con el índice $\kappa$ de Cohen como medida de
+concordancia entre ellos.
+
+\begin{table}[!htbp]
 \caption{ASR preliminar por condición (piloto, $N=1$)}
 \label{tab:piloto-asr}
 \centering
@@ -72,7 +79,7 @@ $\Delta$ solo está definida donde la condición A registró algún éxito: en l
 categorías C2, C3 y C5 el ASR de la línea base fue cero, de modo que no existe
 margen que reducir y la comparación no es informativa.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \caption{ASR por categoría y reducción (piloto, $N=1$). Cada
 categoría contiene cuatro ataques, de modo que un 25\,\% corresponde a un único
 éxito.}
@@ -92,14 +99,15 @@ C5. Evasión por ofuscación & 0\,\% (0/4)  & 0\,\% (0/4) & N/A \\
 \end{tabular}
 \end{table}
 
-Que dos de las cinco categorías arrojen $\Delta$ indefinido es en sí mismo un
-resultado, y era una de las señales de alerta previstas en el diseño. Indica que
+Que dos de las cinco categorías ---C2 y C5--- arrojen $\Delta$ indefinido es en
+sí mismo un resultado, y era una de las señales de alerta previstas en el diseño.
+Indica que
 el modelo base rechaza por su cuenta la mayor parte de los ataques clásicos
 descritos en la literatura, y que el margen sobre el que una defensa de
 aplicación puede demostrar utilidad es, con este modelo, estrecho.
 
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 % Barras agrupadas en TikZ puro: main.tex ya carga tikz, así que la figura no
 % añade ningún paquete al preámbulo. La codificación es por LUMINANCIA y no por
@@ -221,9 +229,20 @@ Un caso merece atención aparte. A10, el único ataque que prosperó por encuadr
 plausible, \textbf{no fue interceptado por L3} en la condición B: su petición no
 contiene ninguna orden de anulación ni ningún marcador reconocible, y el filtro
 la dejó pasar. Sin embargo el asistente se negó a responderla, cosa que no hizo
-en la condición A ante el mismo texto. Puesto que ambas condiciones comparten
-modelo y parámetros, la diferencia solo puede atribuirse a las capas que operan
-a nivel de \textit{prompt}: la prohibición explícita de resumir o parafrasear las
-instrucciones que introduce L4, reforzada por el recordatorio de L2. Es, en este
-piloto, la única evidencia de que alguna capa distinta de L3 aporta algo, y
-justifica el estudio de ablación que se plantea en las limitaciones.
+en la condición A ante el mismo texto.
+
+Esa diferencia es \emph{compatible} con un efecto de las capas que operan a nivel
+de \textit{prompt} ---la prohibición explícita de resumir o parafrasear las
+instrucciones que introduce L4, reforzada por el recordatorio de L2--- pero con
+$N=1$ y temperatura 0{,}7 no puede separarse de la variabilidad del propio
+modelo. El experimento ofrece además una razón concreta para desconfiar de la
+lectura causal: en la verificación de viabilidad, ejecutada con el mismo modelo y
+los mismos parámetros, A10 \textbf{fracasó} contra la condición A, donde el
+asistente rechazó la petición sin intervención de ninguna defensa. El mismo
+ataque, contra la misma condición y el mismo modelo, obtuvo resultados opuestos en
+dos ejecuciones distintas. Su comportamiento varía entre corridas, de modo que una
+sola observación no basta para atribuir la diferencia a las capas.
+
+Es, en este piloto, el único indicio de que alguna capa distinta de L3 aporta
+algo, y justifica tanto la corrida con $N=5$ como el estudio de ablación que se
+plantea en las limitaciones.

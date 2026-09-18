@@ -25,6 +25,62 @@ Si Overleaf aplana los archivos, cambia las tres rutas a `\input{anexo_A}`, etc.
 
 ---
 
+## 0. Comprobaciones visuales de la revisión del PDF anterior
+
+Estos cuatro puntos corresponden a defectos que el PDF compilado dejó ver y que
+ya se corrigieron en el fuente. Hay que confirmar que la corrección funcionó.
+
+### 0.1 Las tablas ya no se acumulan al final (punto 9)
+
+**Qué mirar:** que las Tablas 3 a 8 aparezcan **dentro de sus secciones**, cerca
+de donde se las cita por primera vez, y no en bloque después de las referencias.
+
+Se cargó `placeins` y se pusieron tres `\FloatBarrier`: al final de la Sección
+III, al final de la IV y antes de la bibliografía. Los especificadores pasaron de
+`[t]` a `[!htbp]`, que da a LaTeX cuatro posiciones posibles en vez de una. Los
+entornos `table*` y `figure*` se quedan en `[!tp]`, porque los flotantes a dos
+columnas **no admiten** `h` ni `b`.
+
+**Si alguna sigue lejos de su cita:** mover el entorno en el fuente, más cerca del
+párrafo que la menciona.
+
+### 0.2 Los delimitadores ya no salen como guillemets (punto 10)
+
+**Qué mirar:** en **III-D** (ítem L1) y en la **Fig. 3** (nodo TikZ de la
+arquitectura de B), que se lea `<<<USER_DATA_a91f>>>` y no `«<USER_DATA_a91f»>`.
+
+Ambos sitios usan ya `\textless` y `\textgreater`. De paso se corrigió una
+inconsistencia de la figura, donde el delimitador de cierre llevaba dos `<` en
+lugar de tres.
+
+### 0.3 El payload Base64 de A17 ya no se desborda (punto 11)
+
+**Qué mirar:** en el Anexo A, que la cadena Base64 de A17 **se parta en varias
+líneas** dentro de su celda y no se salga del margen ni aparezca truncada.
+
+`scripts/export_annex_a.py` inserta `\allowbreak` cada 18 caracteres en las
+secuencias de más de 28 sin espacios. Son puntos donde LaTeX *puede* cortar; no
+añaden guiones ni alteran el texto. Se comprobó que al quitarlos se recupera la
+cadena original.
+
+**Si aún desborda:** bajar `PASO_DE_CORTE` en ese script y regenerar.
+
+### 0.4 El Anexo B reproduce el texto exacto (punto 12)
+
+**Qué mirar:** que `[SEGURIDAD — ENTRADA DEL USUARIO]` conserve **el espacio
+después de la raya**, y que ninguna palabra aparezca partida por la mitad al
+final de línea.
+
+El mapeo `literate` llevaba macros sin `{}` detrás, y TeX se comía el espacio
+siguiente. Ahora `breakatwhitespace=true` evita además partir palabras.
+
+`scripts/export_annex_b.py` **verifica de forma automática**, cada vez que se
+ejecuta, que los bloques del anexo coinciden carácter por carácter con los
+archivos de `prompts/`; si no, aborta. Se comprobó que detecta una diferencia de
+un solo espacio.
+
+---
+
 ## 1. `listings` y los shorthands de babel (ALTA)
 
 **Dónde:** Anexo B, los cuatro bloques `lstlisting`.
