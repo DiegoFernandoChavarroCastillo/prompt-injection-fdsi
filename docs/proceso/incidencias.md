@@ -15,9 +15,28 @@ artículo, en la subsección *Desviaciones del protocolo*.
 
 **Estado: RESUELTA — declarada en el artículo.** Se documentó como desviación del
 protocolo en la subsección *Desviaciones del protocolo* de la Sección III de
-`main.tex`. L3 no se modificó tras la ejecución, extremo verificable en el
-historial del repositorio: no hay ningún commit que toque `src/defenses/` entre
-`5f9f6a1` (que introduce L3) y el tag `pilot-freeze`.
+`main.tex`.
+
+**Qué demuestra el historial, exactamente.** El archivo
+`src/defenses/l3_input_filter.py` **no registra ningún cambio posterior al commit
+`5f9f6a1`**, que es el que lo implementó (18-sep-2026, 03:13). No lo hay antes de
+`pilot-freeze` ni lo ha habido después: ese commit sigue siendo el último que toca
+el archivo.
+
+Conviene precisar qué **no** demuestra, porque una versión anterior de este
+registro afirmaba de más. En el intervalo entre `5f9f6a1` y `pilot-freeze` sí hay
+un commit que toca `src/defenses/`: `b1a64d7` (03:27), que implementó L5. No
+afecta a esta desviación —L5 no quedó expuesta por el dry-run, que solo procesa
+respuestas simuladas— pero la afirmación correcta es sobre el archivo de L3, no
+sobre el directorio entero.
+
+El orden temporal entre el dry-run y ese commit descansa en dos apoyos de
+naturaleza distinta. El primero es lógico y no admite discusión: el dry-run
+ejecutó L3 y produjo bloqueos, de modo que L3 tenía que existir ya. El segundo es
+la bitácora, que sitúa el dry-run hacia las 03:20, entre el commit de L3 (03:13) y
+`pilot-freeze` (03:31); eso es un registro propio, no una prueba criptográfica.
+Combinados con el hecho verificable de que el archivo no cambió después de las
+03:13, sostienen que **L3 no se modificó tras la desviación**.
 
 **Gravedad:** media.
 

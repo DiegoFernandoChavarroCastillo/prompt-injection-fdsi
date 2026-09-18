@@ -843,8 +843,9 @@ previa al congelamiento ---una pasada en seco, sin llamadas al modelo, para
 comprobar que el log se generaba correctamente--- el filtro L3 se ejecutó
 sobre los 20 payloads. De esa ejecución solo se observó un conteo agregado
 de bloqueos, sin desglose por ataque ni por regla, y \textbf{el filtro no se
-modificó con posterioridad}, extremo verificable en el historial del
-repositorio. La capa L5 no quedó expuesta, ya que en una pasada en seco no
+modificó con posterioridad}. El historial del repositorio permite comprobarlo: el
+archivo que implementa L3 no registra ningún cambio posterior al commit que lo
+introdujo, anterior a su vez a la ejecución del procedimiento de verificación. La capa L5 no quedó expuesta, ya que en una pasada en seco no
 llega a procesar salidas reales del modelo. Se reporta la desviación en
 lugar de omitirla porque el valor de un preregistro reside precisamente en
 declarar lo que no salió según lo previsto.
