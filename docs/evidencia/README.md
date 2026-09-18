@@ -11,6 +11,36 @@ artículo y de [`../DECISIONES.md`](../DECISIONES.md).
 | [`calibracion_L5.md`](calibracion_L5.md) | Las 35 llamadas (20 benignos del conjunto de control + 15 de desarrollo) con L5 en modo registro, que fijaron el umbral de n-gramas. Máximo observado en un benigno: **2**; umbral elegido: **3**. Demuestra que el umbral se calibró contra prompts legítimos y no contra los ataques. |
 | [`fase4a_benignos_B.txt`](fase4a_benignos_B.txt) | Pruebas manuales de la condición B con prompts benignos durante la Fase 4a, cuando L3 y L5 aún eran esqueletos. Demuestra que el contexto de L1/L2/L4 se construía bien y que B atendía consultas legítimas antes de añadir los filtros. |
 
+## Nota sobre las rutas citadas en el código congelado
+
+Varios comentarios de `config/experiment.yaml`, `src/llm_client.py` y
+`src/runner.py` citan estos archivos por su **ruta antigua**, bajo `notas/`. Esas
+rutas ya no existen: los archivos se reorganizaron en `docs/` al preparar la
+entrega.
+
+Los comentarios **no se actualizaron a propósito**. Esos tres archivos forman
+parte del estado congelado en la etiqueta `final-freeze`, que es el código con el
+que se ejecutará la corrida definitiva, y tocarlos —aunque fuera solo para
+corregir una ruta dentro de un comentario— rompería la garantía de que el código
+no ha cambiado desde que se congeló. Una ruta desactualizada en un comentario
+cuesta este párrafo; un `git diff` no vacío contra `final-freeze` cuesta la
+credibilidad de la congelación.
+
+Equivalencias:
+
+| Ruta citada en el código | Ubicación actual |
+|---|---|
+| `notas/viabilidad_A_gpt-oss-120b.txt` | [`docs/evidencia/viabilidad_A_gpt-oss-120b.txt`](viabilidad_A_gpt-oss-120b.txt) |
+| `notas/viabilidad_A_qwen3.8-27b.txt` | [`docs/evidencia/viabilidad_A_qwen3.8-27b.txt`](viabilidad_A_qwen3.8-27b.txt) |
+| `notas/calibracion_L5.md` | [`docs/evidencia/calibracion_L5.md`](calibracion_L5.md) |
+| `notas/fase4a_benignos_B.txt` | [`docs/evidencia/fase4a_benignos_B.txt`](fase4a_benignos_B.txt) |
+| `notas/BLOQUEOS.md` | [`docs/proceso/incidencias.md`](../proceso/incidencias.md) |
+| `notas/BITACORA_NOCHE.md` | [`docs/proceso/bitacora_sesion_autonoma.md`](../proceso/bitacora_sesion_autonoma.md) |
+| `INSTRUCCIONES_NOCHE.md` | [`docs/proceso/instrucciones_sesion_autonoma.md`](../proceso/instrucciones_sesion_autonoma.md) |
+
+Corregir esas rutas es lo primero que debe hacerse **después** de la corrida
+definitiva, cuando la congelación deje de estar vigente.
+
 ## Qué NO está aquí
 
 Los datos del experimento están en [`../../logs/pilot/`](../../logs/pilot/)
