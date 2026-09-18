@@ -5,6 +5,18 @@ revisión fue estática: escapes, llaves, entornos, `\ref` sin `\label`. Todo es
 está correcto. Lo que sigue son los puntos donde, pese a la revisión, es más
 probable que algo falle, ordenados por probabilidad.
 
+## Después de compilar: guardar el PDF
+
+Descarga el PDF resultante y guárdalo como **`docs/articulo_entrega2.pdf`**.
+`README.md` y `Entregables.md` ya enlazan a esa ruta, así que hasta que el archivo
+exista esos dos enlaces están rotos.
+
+**Vuelve a generarlo cada vez que `main.tex` o cualquiera de los `\input`
+cambie** (`docs/anexo_A.tex`, `docs/anexo_B.tex`, `docs/seccion_IV_piloto.tex`).
+Un PDF desactualizado es peor que no tenerlo: nadie sabe qué versión está leyendo.
+Los anexos, a su vez, se regeneran con `scripts/export_annex_a.py` y
+`scripts/export_annex_b.py` si cambian la batería o los prompts.
+
 ## Antes de compilar
 
 Sube la carpeta `docs/` conservando la estructura: `main.tex` hace

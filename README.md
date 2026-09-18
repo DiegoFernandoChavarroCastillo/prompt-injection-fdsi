@@ -17,7 +17,7 @@ corrida definitiva con N=5 y la auditoría manual independiente.
 |---|---|
 | Ver qué se entregó y dónde está cada cosa | **[Entregables.md](Entregables.md)** |
 | Entender por qué el experimento está montado así | **[docs/DECISIONES.md](docs/DECISIONES.md)** |
-| Leer el artículo | **[main.tex](main.tex)** (compilar en Overleaf) |
+| Leer el artículo | **[docs/articulo_entrega2.pdf](docs/articulo_entrega2.pdf)** — si aún no está, compilar [main.tex](main.tex) en Overleaf |
 | Ver las cifras del piloto | [results/pilot/metricas.md](results/pilot/metricas.md) |
 | Saber qué salió mal por el camino | [docs/proceso/incidencias.md](docs/proceso/incidencias.md) |
 | Instalar y ejecutar | seguir leyendo |
@@ -36,16 +36,6 @@ modelo y los mismos parámetros, y añade cinco capas: L1 delimitación estructu
 recordatorio en sándwich, L3 filtro de entrada, L4 anti-leaking y L5 validación de salida.
 Se reportan **ASR** (tasa de éxito de los ataques), **FPR** (prompts legítimos rechazados de
 más) y el sobrecosto en tokens y latencia.
-
----
-
-## Uso responsable
-
-Los ataques de este repositorio son **técnicas ya publicadas** en la literatura académica
-revisada y en el marco OWASP: describirlas no añade capacidad ofensiva nueva. Se ejecutan
-**únicamente** contra los dos asistentes creados para este estudio, sobre una aseguradora
-**ficticia**, y el secreto que se intenta extraer es un **valor sintético** que no protege
-ningún sistema real. No se atacaron servicios de terceros ni se usaron datos personales.
 
 ---
 
@@ -179,8 +169,8 @@ El diff debe ser **solo adiciones**: si mostrara alguna línea eliminada o modif
 simetría entre condiciones estaría rota y la diferencia de ASR ya no sería atribuible a
 las capas de defensa. Devuelve código ≠ 0 en ese caso.
 
-Los tests de L3 y L5 están marcados como `skip` hasta la Fase 4; se activan quitando el
-marcador `@pytest.mark.skip`.
+**183 pruebas, ninguna omitida.** No consumen cuota: los componentes que hablan con el
+modelo se sustituyen por dobles.
 
 ---
 
@@ -234,16 +224,22 @@ y quedaron fijadas en la Fase 0.
 
 ```
 prompt-injection-fdsi/
+├── Entregables.md             # qué se entregó y dónde está cada cosa
+├── main.tex                   # el artículo (compilar en Overleaf)
 ├── config/experiment.yaml     # variables controladas del experimento
 ├── prompts/                   # system prompts de A y B, canary, recordatorio L2, mensajes
-├── data/                      # batería: 20 ataques + 20 benignos (Anexo A)
-│   └── MANIFEST.txt           # hashes del preregistro de la batería
+├── data/
+│   ├── attacks_v1.json        # los 20 ataques, 4 por categoría
+│   ├── benign_v1.json         # los 20 prompts legítimos
+│   ├── MANIFEST.txt           # hashes del preregistro de la batería
+│   ├── dev_attacks.json       # 25 ataques + 15 benignos DE DESARROLLO (fuera del experimento)
+│   └── classifier_markers.json # marcadores de éxito por ataque
 ├── src/
 │   ├── config.py              # carga y valida la configuración (inmutable)
 │   ├── prompts.py             # carga los prompts y acota el cotejo de L5
 │   ├── battery.py             # carga la batería y verifica su preregistro
 │   ├── llm_client.py          # ÚNICA puerta hacia la API
-│   ├── chatbot_a.py           # condición A (vulnerable)
+│   ├── chatbot_a.py           # condición A (línea base sin defensas de aplicación)
 │   ├── chatbot_b.py           # condición B (5 capas)
 │   ├── defenses/              # L3 (entrada) y L5 (salida)
 │   ├── runner.py              # ejecuta la batería y escribe logs JSONL
@@ -258,10 +254,20 @@ prompt-injection-fdsi/
 │   ├── calibrate_l5.py        # calibra el umbral de L5 (solo con benignos)
 │   ├── report_pilot.py        # clasifica el log y genera results/pilot/
 │   └── try_chatbot.py         # prueba manual de un chatbot (NO escribe logs)
-├── docs/anexo_A.tex           # Anexo A generado, para el artículo
-├── tests/                     # pruebas que no consumen cuota
-├── logs/pilot/                # datos crudos del piloto (no versionados)
-└── results/pilot/             # tablas derivadas (no versionadas)
+├── docs/
+│   ├── DECISIONES.md          # las 15 decisiones metodológicas, con su evidencia
+│   ├── anexo_A.tex            # Anexo A generado: la batería completa
+│   ├── anexo_B.tex            # Anexo B generado: los prompts y el diff A→B
+│   ├── seccion_IV_piloto.tex  # resultados preliminares, incluidos en el artículo
+│   ├── tabla6_valores.md      # de dónde sale cada valor de la Tabla 6
+│   ├── cambios_pendientes_main.md  # cambios propuestos al artículo
+│   ├── verificar_en_overleaf.md    # qué comprobar al compilar
+│   ├── guion_demo.md          # guion de demostración de 5 minutos
+│   ├── proceso/               # instrucciones, bitácora e incidencias
+│   └── evidencia/             # salidas crudas de las verificaciones
+├── tests/                     # 183 pruebas, ninguna consume cuota
+├── logs/pilot/                # registros crudos del piloto (versionados)
+└── results/pilot/             # métricas, observaciones y revisión manual (versionados)
 ```
 
 Se versiona lo que hace reproducible el estudio (`config/`, `prompts/`, `data/`, `src/`);
@@ -278,7 +284,7 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **0 — Decisiones y configuración inicial** | Repo, `.gitignore`, `.env`, configuración congelada, cliente LLM, smoke test | ✅ **Hecha** |
 | **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
 | **2 — Batería de ataques y benignos** | 40 prompts con metadatos, congelados como `v1` y preregistrados (tag `battery-v1`) | ✅ **Hecha** |
-| **3 — Condición A** | Chatbot vulnerable (Listing 1): concatenación plana en un solo mensaje `user` | ✅ **Hecha** |
+| **3 — Condición A** | Línea base sin defensas de aplicación (Listing 1): concatenación plana en un solo mensaje `user` | ✅ **Hecha** |
 | **4 — Condición B** | Las cinco capas L1–L5 implementadas y probadas; umbral de L5 calibrado con benignos | ✅ **Hecha** |
 | **5 — Ejecutor y logs** | `runner.py` reanudable, orden aleatorizado, logs JSONL de 29 campos | ✅ **Hecha** |
 | **6 — Clasificador y métricas** | Árbol de la Fig. 4 + ASR/FPR/sobrecosto en tres modos de revisión | ✅ **Hecha** |
@@ -286,16 +292,10 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **8 — Actualización del artículo** | Tabla 6, anexos, desviaciones y Sección IV aplicados a `main.tex` | ✅ **Hecha** |
 | **9 — Preparación de la entrega** | [Entregables.md](Entregables.md), [guion de demo](docs/guion_demo.md) y tag `entrega-2` | ✅ **Hecha** |
 
-### Qué hay hoy en el repositorio
+### Estado actual
 
-Lo que ya funciona: la configuración (`src/config.py`), el cliente de la API
-(`src/llm_client.py`), la carga de prompts (`src/prompts.py`), la carga de la batería
-(`src/battery.py`), los cuatro scripts y sus pruebas. Los system prompts de ambas
-condiciones están escritos y su simetría verificada; la batería de 20 ataques y 20
-benignos está congelada y preregistrada.
-**Las dos condiciones, el runner, el clasificador y las métricas están implementados**, y
-el piloto N=1 se ejecutó el 18-sep-2026 (80 interacciones, 0 errores). Ya no queda ningún
-stub.
+Todo está implementado: las dos condiciones, las cinco capas, el ejecutor, el clasificador
+y las métricas. El piloto N=1 se ejecutó el 18-sep-2026 (80 interacciones, 0 errores).
 
 **Resultados preliminares del piloto** (N=1, ninguna conclusión fuerte):
 
@@ -313,13 +313,15 @@ clásicos, y ese es el hallazgo del trabajo. Detalle en
 [`results/pilot/`](results/pilot/metricas.md).
 
 Las dos incidencias detectadas durante la construcción están **resueltas y documentadas**
-en [`docs/proceso/incidencias.md`](docs/proceso/incidencias.md). Quedan **2 casos pendientes
-de revisión manual** en `results/pilot/revision_manual.csv`.
+en [`docs/proceso/incidencias.md`](docs/proceso/incidencias.md). Los dos casos que
+necesitaron revisión manual ya se revisaron: **no queda ninguno pendiente**
+([`results/pilot/revision_manual.csv`](results/pilot/revision_manual.csv)).
 
-Ambas condiciones devuelven el **mismo dict de once claves** (`src.RESPONSE_KEYS`:
+Ambas condiciones devuelven el **mismo dict de doce claves** (`src.RESPONSE_KEYS`:
 `response`, `raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`,
-`latency_ms`, `model_reported`, `truncated`, `reasoning`, `defense_trace`), para que el
-runner pueda tratarlas de forma intercambiable y las tablas sean comparables.
+`latency_ms`, `api_latency_ms`, `model_reported`, `truncated`, `reasoning`,
+`defense_trace`), para que el runner pueda tratarlas de forma intercambiable y las tablas
+sean comparables.
 
 ### Regla antisesgo (Fase 4)
 
@@ -333,9 +335,13 @@ a ejecutar `--condition B --id Axx`. No aplica a la condición A: no tiene defen
 
 ---
 
-## Ética
+## Uso responsable y ética
 
-Los ataques de este repositorio se ejecutan **solo** contra los dos asistentes del
-laboratorio, creados para el estudio. El canary (`INTERNAL-KEY-7F3A9B`) es sintético y no
-protege ningún sistema real, por lo que puede publicarse en el artículo. No se prueban
-sistemas de terceros ni se usan datos personales.
+Los ataques de este repositorio son **técnicas ya publicadas** en la literatura académica
+revisada y en el marco OWASP LLM01: describirlas no añade capacidad ofensiva nueva.
+
+Se ejecutan **únicamente** contra los dos asistentes creados para este estudio, sobre una
+aseguradora **ficticia**. El secreto que se intenta extraer (`INTERNAL-KEY-7F3A9B`) es un
+**valor sintético** que no protege ningún sistema real, y por eso puede publicarse en el
+artículo: sin publicarlo, el criterio de fuga no sería verificable. No se probaron sistemas
+de terceros ni se usaron datos personales.

@@ -29,7 +29,8 @@ distinguir un comportamiento estable de una variación puntual del modelo.
 
 Recomendamos revisar el material en este orden:
 
-1. **El artículo** (`main.tex`) — el trabajo en sí. La Sección IV trae los
+1. **El artículo** ([`docs/articulo_entrega2.pdf`](docs/articulo_entrega2.pdf), compilado
+   desde `main.tex`) — el trabajo en sí. La Sección IV trae los
    resultados del piloto, marcados como preliminares.
 2. **Este documento** — qué se entregó y dónde está cada cosa.
 3. **Los resultados del piloto** (`results/pilot/`) — las cifras, los casos que
@@ -47,13 +48,15 @@ Recomendamos revisar el material en este orden:
 
 | Ruta | Qué es |
 |---|---|
-| `main.tex` | Artículo completo en LaTeX. El resumen (*abstract*) sigue pendiente a propósito: se escribe al final, cuando existan los resultados definitivos |
+| `docs/articulo_entrega2.pdf` | **El artículo compilado.** Es lo que conviene leer. Se genera compilando `main.tex` |
+| `main.tex` | Fuente LaTeX del artículo. El resumen (*abstract*) sigue pendiente a propósito: se escribe al final, cuando existan los resultados definitivos |
 | `docs/anexo_A.tex` | Anexo A generado: los 20 ataques y los 20 benignos con sus metadatos |
 | `docs/anexo_B.tex` | Anexo B generado: los prompts de ambas condiciones y el diff que prueba su simetría |
 | `docs/seccion_IV_piloto.tex` | Subsección de resultados preliminares, incluida en la Sección IV |
 | `docs/verificar_en_overleaf.md` | Puntos a comprobar al compilar; no se pudo compilar LaTeX en la máquina de desarrollo |
 
-*No se incluye PDF: el artículo debe compilarse en Overleaf.*
+*El PDF se genera compilando `main.tex` en Overleaf. Si `main.tex` cambia, hay que
+volver a generarlo: ver [`docs/verificar_en_overleaf.md`](docs/verificar_en_overleaf.md).*
 
 ### Código
 
@@ -142,7 +145,7 @@ hablan con el modelo se sustituyen por dobles.
 
 ## Trazabilidad
 
-Tres etiquetas de git marcan estados del repositorio que se pueden verificar.
+Cuatro etiquetas de git marcan estados del repositorio que se pueden verificar. Las tres primeras garantizan algo; la cuarta solo nombra el estado entregado.
 
 | Etiqueta | Commit | Qué garantiza |
 |---|---|---|
@@ -199,6 +202,10 @@ Para ejecutar el experimento de verdad hace falta una clave de API
 - [ ] *(Opcional)* **Estudio de ablación por capas**, para poder atribuir el
       efecto a cada una. El piloto no lo permite: L3 intercepta antes de que las
       demás actúen.
+- [ ] **Corregir las rutas antiguas** que los comentarios del código congelado
+      citan bajo `notas/`, una vez terminada la corrida final y levantada la
+      congelación de `final-freeze`. Equivalencias en
+      [`docs/evidencia/README.md`](docs/evidencia/README.md).
 - [ ] **Presentación final** y guion de demostración (borrador en
       `docs/guion_demo.md`).
 
@@ -217,7 +224,7 @@ equipo pueda revisarlos.
 | Integrante | Responsabilidad |
 |---|---|
 | **Laura Alejandra Venegas Piraban** | Auditoría manual independiente (revisora 1) · Revisión cruzada de la batería de ataques · Redacción de la Sección V |
-| **David Palacios** | Auditoría manual independiente (revisora/revisor 2) · Revisión cruzada del filtro L3 · Cálculo del κ de Cohen y Sección VI |
+| **David Palacios** | Auditoría manual independiente (revisor 2) · Revisión cruzada del filtro L3 · Cálculo del κ de Cohen y Sección VI |
 | **Diego Fernando Chavarro** | Ejecución de la corrida definitiva · Métricas y figuras · Integración del artículo y resumen |
 
 La auditoría manual y la revisión cruzada se asignan deliberadamente a Laura y

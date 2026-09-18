@@ -83,7 +83,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--condition", required=True, choices=sorted(CONDICIONES),
-        help="A (vulnerable) o B (protegida)",
+        help="A (línea base sin defensas de aplicación) o B (protegida)",
     )
     fuente = parser.add_mutually_exclusive_group(required=True)
     fuente.add_argument("--text", help="prompt escrito a mano")

@@ -1,10 +1,10 @@
-"""Pruebas de la condición A — chatbot vulnerable (Fase 3).
+"""Pruebas de la condición A — línea base sin defensas de aplicación (Fase 3).
 
 No llaman a la API: inyectan un doble de :class:`src.llm_client.LLMClient`.
 
-Lo que se verifica aquí no es que A responda *bien*, sino que sea **fielmente
-vulnerable**: que construya el prompt exactamente como el Listing 1 del
-artículo, que lo envíe en un único mensaje sin rol ``system``, y que no toque la
+Lo que se verifica aquí no es que A responda *bien*, sino que carezca fielmente
+de defensas de aplicación: que construya el prompt exactamente como el Listing 1
+del artículo, que lo envíe en un único mensaje sin rol ``system``, y que no toque la
 entrada del usuario. Si alguno de estos tests empezara a fallar porque alguien
 "mejoró" la condición A, el experimento perdería su punto de comparación: A y B
 dejarían de diferenciarse solo por las capas de defensa.
