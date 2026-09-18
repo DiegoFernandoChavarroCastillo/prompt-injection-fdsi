@@ -220,3 +220,44 @@ no empuje a sobreajustar el filtro a su propio conjunto de desarrollo.
 - 3.9 README y guion de demo con casos reales. Commit `832d12f`.
 - pytest final: **179 pasan, 0 se omiten**.
 - Llamadas API: **116 / 200**. Cupo restante: 893/1000.
+
+---
+
+# Sesión de cierre de la entrega intermedia (con Diego despierto)
+
+### [mañana] 1. Revisión manual del piloto — **BLOQUEADO**
+`results/pilot/revision_manual.csv` sigue **vacío**: `label_manual` y `nota` en
+blanco, y el archivo es byte a byte idéntico al commiteado a las 03:50. Las
+etiquetas no llegaron a guardarse. No invento etiquetas de investigación.
+
+Lo que sí quedó listo: `report_pilot.py` ahora lee el CSV e incorpora
+`label_manual` al log clasificado **sin tocar `label_auto`**, y no sobrescribe un
+CSV ya revisado (los pendientes van a `revision_manual_pendientes.csv`).
+Probado con etiquetas de ensayo en un directorio aparte; el CSV real no se tocó
+y el log clasificado se regeneró limpio después.
+
+**Cuando guardes el CSV, un solo comando cierra el punto 1:**
+```
+python scripts/report_pilot.py logs/pilot/pilot-2026-09-18.jsonl
+```
+Después hay que actualizar a mano las cifras de `docs/seccion_IV_piloto.tex`,
+que tiene dos comentarios `% PROVISIONAL` señalando exactamente dónde.
+
+### 2. B-02 corregido
+Espaciado extraído de `LLMClient` a una clase `Pacer` que aplica el runner entre
+interacciones. `latency_ms` ya no incluye la espera. 4 tests nuevos. Docstrings
+de `respond()` corregidos en ambas condiciones. Tag **`final-freeze` → `afd49bd`**
+y nota en `PlanDeAccion.md`. El piloto NO se reejecutó.
+
+### 3. Artículo
+`main.tex` versionado primero sin cambios (`9f75726`), y luego los 12 puntos en
+seis commits por grupo lógico. Dos hallazgos de la revisión de LaTeX:
+- El mapa `literate` del Anexo B mapeaba `«` a `<<`, que babel spanish reexpande.
+- **Defecto preexistente** en `main.tex`: `\texttt{<<<USER\_DATA...>>>}` se
+  habría compuesto como `«<USER_DATA...»>`. Corregido.
+Lista de verificación para Overleaf en `docs/verificar_en_overleaf.md`.
+
+### 4. Estado final
+- pytest: **183 pasan, 0 se omiten**.
+- Tags: `battery-v1`, `pilot-freeze`, `final-freeze`.
+- Sin push.
