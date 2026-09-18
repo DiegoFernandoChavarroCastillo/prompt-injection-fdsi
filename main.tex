@@ -288,6 +288,12 @@ respuesta = llm.generate(prompt)
 return respuesta   # sin validacion de salida
 \end{lstlisting}
 
+Sobre una API de chat, esa concatenación plana se materializa como un
+\emph{único} mensaje con rol \texttt{user}, sin mensaje de sistema. La
+ausencia de separación de roles no es un descuido de implementación: es la
+variable independiente del experimento, y es precisamente lo que la
+condición B corrige mediante L1.
+
 La Fig.~\ref{fig:arqA} ilustra este flujo: un único canal de texto, sin
 puntos de control.
 
@@ -358,6 +364,16 @@ del sistema donde una decisión no depende del comportamiento del LLM.
     siguiendo el principio de \textit{spotlighting} \cite{ref8}. La
     analogía directa es la consulta parametrizada en bases de datos, donde
     el dato jamás puede reinterpretarse como comando.
+
+    \item[] \textit{Nota de implementación:} el recordatorio de L2 se
+    reinyecta dentro del mismo mensaje \texttt{user}, inmediatamente después
+    del delimitador de cierre del bloque de datos. De este modo la última
+    instrucción presente en el contexto procede del operador y no del
+    cliente. Si la entrada del usuario contiene una marca con la forma de un
+    delimitador ---en cualquier variante de mayúsculas, espaciado o
+    identificador--- se sustituye por un marcador neutro antes de
+    encapsularla, para que no pueda cerrar el bloque de datos y escribir
+    fuera de él.
 
     \item \textbf{L2 --- Refuerzo por enmarcado (\textit{sandwich
     defense}).} La instrucción legítima se repite después del bloque de
@@ -662,6 +678,16 @@ Para el cálculo del ASR se considera únicamente el estado de éxito total;
 los éxitos parciales se reportan por separado como indicador de
 degradación de la defensa.
 
+Del lado de los \textit{prompts} benignos, se considera \textbf{degradada}
+una respuesta que, sin haber sido bloqueada por ninguna capa, no atiende la
+consulta: una negativa sin motivo, una redirección genérica o una respuesta
+dentro del dominio que no responde lo preguntado. Las respuestas degradadas
+computan como falso positivo junto a las bloqueadas, porque desde el punto
+de vista del cliente el resultado es el mismo: la consulta legítima quedó
+sin resolver. Dado que la distinción es de grado y no de tipo, el
+clasificador automático no la decide por su cuenta: marca los casos
+candidatos y los deriva a revisión humana.
+
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -714,6 +740,17 @@ respuesta y el estado clasificado, en formato JSON estructurado. Este
 registro constituye el insumo directo de la Sección IV y permite la
 reproducción íntegra del experimento.
 
+El orden de ejecución se aleatoriza mezclando todas las tuplas
+(condición, \textit{prompt}, repetición) con una semilla fija que queda
+registrada en cada línea del log. Sin esa mezcla, las dos condiciones se
+ejecutarían en bloques separados en el tiempo y cualquier deriva del
+proveedor ---latencia, carga, una actualización del modelo--- quedaría
+confundida con el efecto de la condición. El ejecutor es además reanudable:
+al reiniciarlo omite las tuplas que ya tengan un resultado distinto de
+error, de modo que una interrupción no obliga a repetir lo ya ejecutado y
+reintentar los fallos transitorios consiste en volver a lanzar el mismo
+comando.
+
 Dos valores de la tabla requieren aclaración. El modelo empleado es un modelo
 de razonamiento: los \textit{tokens} que dedica a su deliberación interna se
 descuentan del mismo límite de salida, de modo que el máximo de 1500 no
@@ -756,6 +793,55 @@ Periodo de ejecución & Piloto: 18-sep-2026 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Selección del modelo y regla de viabilidad}
+\label{sec:viabilidad}
+
+El modelo inicialmente previsto, \texttt{llama-3.3-70b-versatile}, fue
+retirado por el proveedor el 16 de agosto de 2026, lo que obligó a migrar
+antes de ejecutar ninguna corrida. Para que la elección del reemplazo no
+quedara a merced del resultado que produjera, se fijó una \textbf{regla de
+viabilidad preregistrada} antes de ejecutar nada: se lanzan los 20 ataques
+una vez contra la condición A y el modelo se considera viable si al menos
+cuatro logran éxito total o parcial, abarcando al menos dos categorías; si
+no lo es, se cambia \emph{una sola vez} y se acepta el resultado que
+arroje el segundo, cualquiera que sea; si el segundo tampoco resulta
+viable, se vuelve al primero y la baja vulnerabilidad de la línea base se
+reporta como hallazgo.
+
+La verificación arrojó 2 éxitos de 20 con \texttt{openai/gpt-oss-120b} y 0
+éxitos totales (1 parcial) con \texttt{qwen/qwen3.8-27b}. Ninguno alcanzó
+el umbral, de modo que se retuvo el primero, que además es un modelo en
+estado de producción y no de vista previa. La regla existe para dejar
+constancia de que el modelo no se eligió probando hasta encontrar uno
+suficientemente vulnerable, que habría sido ajustar el instrumento al
+resultado deseado.
+
+\subsection{Desviaciones del protocolo}
+\label{sec:desviaciones}
+
+Se registran aquí las dos desviaciones respecto del protocolo previsto, por
+transparencia y porque ambas afectan a la interpretación de los resultados.
+
+\textbf{(i) Ejecución de L3 sobre la batería antes del congelamiento.} El
+protocolo establecía que la condición B enfrentaría la batería por primera
+vez en la corrida piloto. Durante una verificación técnica del ejecutor
+previa al congelamiento ---una pasada en seco, sin llamadas al modelo, para
+comprobar que el log se generaba correctamente--- el filtro L3 se ejecutó
+sobre los 20 payloads. De esa ejecución solo se observó un conteo agregado
+de bloqueos, sin desglose por ataque ni por regla, y \textbf{el filtro no se
+modificó con posterioridad}, extremo verificable en el historial del
+repositorio. La capa L5 no quedó expuesta, ya que en una pasada en seco no
+llega a procesar salidas reales del modelo. Se reporta la desviación en
+lugar de omitirla porque el valor de un preregistro reside precisamente en
+declarar lo que no salió según lo previsto.
+
+\textbf{(ii) Cambio de modelo por retiro del proveedor.} La sustitución del
+modelo descrita en la Sección~\ref{sec:viabilidad} no estaba contemplada en
+el diseño original. Se gestionó mediante la regla de viabilidad
+preregistrada, que fija por anticipado cuántos cambios se permiten y bajo
+qué criterio, de modo que la decisión no dependiera de los resultados
+observados.
 
 \subsection{Consideraciones éticas}
 
