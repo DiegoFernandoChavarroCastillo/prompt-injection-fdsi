@@ -45,6 +45,14 @@ from src.config import Config, get_config
 logger = logging.getLogger(__name__)
 
 #: Códigos HTTP que justifican reintentar (el problema es transitorio).
+#:
+#: CUIDADO con el 429: casi siempre es transitorio, pero Groq lo usa también
+#: para un rechazo PERMANENTE, cuando ``max_tokens`` supera el límite de tokens
+#: de salida por minuto de la cuenta (OTPM). Ese caso no mejora reintentando:
+#: agota los reintentos y acaba en LLMCallError, siete llamadas por interacción.
+#: El mensaje lo distingue ("Request too large ... reduce max_tokens"). La
+#: defensa está en la config: ``max_tokens`` debe quedar por debajo del OTPM
+#: (ver config/experiment.yaml y tests/test_config.py).
 RETRYABLE_STATUS_CODES = frozenset({408, 409, 429, 500, 502, 503, 504})
 
 #: Tope de espera por reintento, para que el backoff no se dispare sin control.

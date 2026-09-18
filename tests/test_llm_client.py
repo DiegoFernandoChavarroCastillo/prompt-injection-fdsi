@@ -133,8 +133,12 @@ def test_model_reported_viene_de_la_api_no_de_la_config(config):
 # -- Parámetros congelados ---------------------------------------------------
 
 
-def test_se_envian_siempre_todos_los_parametros_congelados(config):
-    """Los cinco ajustes del YAML deben viajar en cada llamada."""
+def test_se_envian_siempre_los_parametros_congelados(config):
+    """Todos los ajustes declarados en el YAML deben viajar en cada llamada.
+
+    Si alguno se perdiera, las dos condiciones se ejecutarían con parámetros
+    distintos y la comparación A vs. B dejaría de ser válida.
+    """
     fake = FakeClient()
     LLMClient(config, client=fake).chat(MENSAJES)
     kwargs = fake.completions.kwargs
@@ -144,10 +148,26 @@ def test_se_envian_siempre_todos_los_parametros_congelados(config):
     assert kwargs["top_p"] == config.inference.top_p
     assert kwargs["max_tokens"] == config.inference.max_tokens
     assert kwargs["reasoning_effort"] == config.inference.reasoning_effort
-    # include_reasoning no está tipado por el SDK: viaja en extra_body.
-    assert kwargs["extra_body"] == {
-        "include_reasoning": config.inference.include_reasoning
-    }
+
+    # include_reasoning no está declarado con qwen/qwen3.8-27b (es propio de
+    # gpt-oss y excluyente con reasoning_format), así que no debe enviarse.
+    if config.inference.include_reasoning is None:
+        assert "extra_body" not in kwargs
+    else:
+        # No lo tipa el SDK: cuando sí se declara, viaja en extra_body.
+        assert kwargs["extra_body"] == {
+            "include_reasoning": config.inference.include_reasoning
+        }
+
+
+def test_include_reasoning_viaja_en_extra_body_cuando_se_declara(config):
+    """Si se vuelve a gpt-oss-120b, el parámetro debe llegar por extra_body."""
+    con_gpt_oss = replace(
+        config, inference=replace(config.inference, include_reasoning=True)
+    )
+    fake = FakeClient()
+    LLMClient(con_gpt_oss, client=fake).chat(MENSAJES)
+    assert fake.completions.kwargs["extra_body"] == {"include_reasoning": True}
 
 
 def test_los_parametros_opcionales_se_omiten_si_no_estan_configurados(config):
@@ -245,14 +265,32 @@ def test_se_avisa_si_llega_razonamiento_pese_a_pedir_que_se_oculte(config, caplo
 
 
 def test_no_se_avisa_cuando_el_razonamiento_se_pidio_a_proposito(config, caplog):
-    """Con ``include_reasoning=True`` recibirlo es lo esperado: sin warning."""
-    assert config.inference.include_reasoning is True
+    """Con ``include_reasoning=True`` recibirlo es lo esperado: sin warning.
+
+    Es el caso de gpt-oss-120b, al que la regla preregistrada permite volver.
+    """
+    pedido = replace(config, inference=replace(config.inference, include_reasoning=True))
     fake = FakeClient(respuesta=_respuesta(reasoning="Pensando..."))
     with caplog.at_level(logging.WARNING, logger="src.llm_client"):
-        resultado = LLMClient(config, client=fake).chat(MENSAJES)
+        resultado = LLMClient(pedido, client=fake).chat(MENSAJES)
 
     assert resultado["reasoning"] == "Pensando..."
     assert not any("include_reasoning" in registro.message for registro in caplog.records)
+
+
+def test_el_razonamiento_se_captura_aunque_no_se_haya_pedido(config, caplog):
+    """Con el razonamiento desactivado no debería llegar; si llega, se registra.
+
+    Con ``reasoning_effort="none"`` qwen no devuelve razonamiento (comprobado
+    contra la API). Pero si un cambio de versión del modelo lo reintrodujera, el
+    cliente debe seguir guardándolo aparte y jamás dentro de ``text``.
+    """
+    assert config.inference.reasoning_effort == "none"
+    fake = FakeClient(respuesta=_respuesta(reasoning="Pensando pese a todo."))
+    resultado = LLMClient(config, client=fake).chat(MENSAJES)
+
+    assert resultado["reasoning"] == "Pensando pese a todo."
+    assert "Pensando" not in resultado["text"]
 
 
 # -- Reintentos y errores ----------------------------------------------------

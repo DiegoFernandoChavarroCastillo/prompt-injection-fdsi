@@ -52,36 +52,47 @@ def test_temperatura_mayor_que_cero(config):
 def test_parametros_de_inferencia_congelados(config):
     """Los valores acordados no deben cambiar sin acuerdo del equipo.
 
-    ``max_tokens`` subió de 400 a 1500 en la migración a ``openai/gpt-oss-120b``
-    (2026-09-18): es un modelo de razonamiento y los tokens de razonamiento se
-    descuentan de ese mismo techo, así que con 400 la respuesta llegaba vacía.
+    ``max_tokens`` vale 400, como en el preregistro. Subió temporalmente a 1500
+    mientras se usó ``openai/gpt-oss-120b``, cuyo razonamiento se descontaba del
+    mismo techo. Con ``qwen/qwen3.8-27b`` y el razonamiento apagado vuelve a 400,
+    que además es obligatorio: la cuenta tiene un límite de 1000 OTPM para este
+    modelo y Groq rechaza con 429 por el ``max_tokens`` solicitado.
     """
     assert config.inference.temperature == 0.7
     assert config.inference.top_p == 1.0
-    assert config.inference.max_tokens == 1500
+    assert config.inference.max_tokens == 400
 
 
-def test_el_modelo_retirado_ya_no_esta_configurado(config):
-    """llama-3.3-70b-versatile fue retirado por Groq el 2026-08-16.
+def test_el_max_tokens_cabe_en_el_limite_de_salida_por_minuto(config):
+    """``max_tokens`` no puede acercarse al techo de 1000 OTPM de la cuenta.
 
-    Devuelve HTTP 404 model_not_found: cualquier corrida con él falla entera.
+    Groq compara el límite contra el ``max_tokens`` SOLICITADO, no contra el
+    consumido: pedir más devuelve 429 en todas y cada una de las llamadas, y el
+    piloto no produciría ni un dato.
     """
-    assert config.model != "llama-3.3-70b-versatile"
-    assert config.model == "openai/gpt-oss-120b"
+    assert config.inference.max_tokens <= 1000
 
 
-def test_los_parametros_de_razonamiento_estan_congelados(config):
-    """Razonamiento al mínimo y oculto en la respuesta.
+def test_los_modelos_descartados_ya_no_estan_configurados(config):
+    """Ni el retirado ni el que no superó la verificación de viabilidad.
 
-    gpt-oss-120b no admite ``reasoning_effort="none"`` (la API responde 400:
-    *must be one of low, medium, high*), así que "low" es el mínimo posible.
-    ``include_reasoning=True`` pide el razonamiento para registrarlo: alimenta el
-    análisis cualitativo de la Sección V. El cliente lo guarda en la clave
-    ``reasoning``, nunca dentro de ``text``, y el clasificador lo ignora, porque
-    el usuario del chatbot no llega a verlo.
+    * ``llama-3.3-70b-versatile``: retirado por Groq el 2026-08-16 (404).
+    * ``openai/gpt-oss-120b``: no viable para la condición A (2/20 ataques, por
+      debajo del umbral preregistrado de 4 en >= 2 categorías).
     """
-    assert config.inference.reasoning_effort == "low"
-    assert config.inference.include_reasoning is True
+    assert config.model not in ("llama-3.3-70b-versatile", "openai/gpt-oss-120b")
+    assert config.model == "qwen/qwen3.8-27b"
+
+
+def test_el_razonamiento_esta_desactivado(config):
+    """La regla preregistrada exige este modelo con razonamiento desactivado.
+
+    ``qwen/qwen3.8-27b`` sí acepta ``reasoning_effort="none"`` (gpt-oss-120b lo
+    rechazaba con 400). ``include_reasoning`` no se declara: es propio de gpt-oss
+    y es excluyente con ``reasoning_format``, así que el cliente no debe enviarlo.
+    """
+    assert config.inference.reasoning_effort == "none"
+    assert config.inference.include_reasoning is None
 
 
 def test_reasoning_effort_invalido_da_error_claro(tmp_path, monkeypatch, config):
