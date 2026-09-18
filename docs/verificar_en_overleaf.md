@@ -80,7 +80,23 @@ reexpandido.
 **Si algún carácter sale mal:** añade su par al mapa `LITERATE` en
 `scripts/export_annex_b.py`.
 
-## 6. Numeración de las subsecciones nuevas (BAJA)
+## 6. La figura del piloto (MEDIA)
+
+**Dónde:** Fig. 1 de la Sección IV, en `docs/seccion_IV_piloto.tex`.
+
+**Qué mirar:** que las barras, la leyenda y los rótulos C1–C5 no se solapen y que
+la figura quepa en una columna. Está dibujada en TikZ puro, con coordenadas
+absolutas en centímetros y `xscale=0.92`; el ancho resultante ronda los 7 cm más
+las etiquetas del eje, y una columna del formato a dos columnas tiene unos 8,8 cm.
+
+Se escribió **sin condicionales, sin `\pgfmathsetmacro` y sin usar `\a`, `\b`,
+`\i` ni `\v` como variables de bucle** —son comandos del núcleo de LaTeX— para
+eliminar las causas habituales de fallo. Aun así no se pudo compilar.
+
+**Si se sale del margen:** baja `xscale` a 0,85. **Si la leyenda choca con las
+barras:** súbela cambiando `2.92`/`3.10` por `3.05`/`3.23`.
+
+## 7. Numeración de las subsecciones nuevas (BAJA)
 
 **Dónde:** Sección III (`Selección del modelo`, `Desviaciones del protocolo`) y
 Sección IV (`Resultados preliminares`).
@@ -90,7 +106,7 @@ ninguna referencia cruzada en el texto. Las referencias por `\ref` están
 verificadas, pero si en algún sitio citaste una sección por su número escrito a
 mano ("ver Sección III-C"), ese número puede haberse desplazado.
 
-## 7. El canary en el Anexo B (BAJA, decisión editorial)
+## 8. El canary en el Anexo B (BAJA, decisión editorial)
 
 `INTERNAL-KEY-7F3A9B` aparece en claro. Es intencional y está justificado en el
 texto del anexo, pero confírmalo antes de entregar.
@@ -107,3 +123,8 @@ texto del anexo, pero confírmalo antes de entregar.
 - `\usepackage{longtable}` presente y antes de `hyperref`.
 - Caracteres especiales (`&`, `%`, `#`, `_`, `{`, `}`, `~`, `^`, `\`, `<`, `>`,
   `|`, `"`) escapados en todo lo generado.
+- Ningún `\ref` sin `\label` ni `\cite` sin `\bibitem` (incluida la referencia
+  nueva del *model card* del modelo).
+- Las cifras del artículo coinciden con `results/pilot/metricas.md`.
+- La figura no usa condicionales ni macros de un solo carácter que colisionen con
+  comandos del núcleo.
