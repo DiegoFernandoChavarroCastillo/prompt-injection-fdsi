@@ -14,6 +14,7 @@ permite verificar sin gastar cuota lo que de verdad importa del cliente:
 from __future__ import annotations
 
 import logging
+import time
 import types
 from dataclasses import replace
 
@@ -353,3 +354,93 @@ def test_rechaza_mensajes_malformados_antes_de_gastar_una_llamada(config, malos)
     with pytest.raises(ValueError):
         LLMClient(config, client=fake).chat(malos)
     assert fake.completions.llamadas == 0
+
+
+# -- B-02: el espaciado no cuenta como latencia ------------------------------
+
+
+def test_chat_no_duerme_por_rate_limit(config):
+    """``chat()`` no debe esperar entre llamadas: eso lo hace el runner.
+
+    Es el arreglo de B-02. Mientras el espaciado vivía dentro de ``chat()``, la
+    espera quedaba dentro de ``respond()`` y ``latency_ms`` medía sobre todo el
+    rate limit. Con 5 s de separación configurada, tres llamadas seguidas deben
+    completarse en un instante.
+    """
+    espaciado = replace(
+        config,
+        rate_limit=RateLimitParams(
+            min_seconds_between_calls=5.0, max_retries=0, backoff_base_seconds=0.001
+        ),
+    )
+    cliente = LLMClient(espaciado, client=FakeClient())
+    empezado = time.perf_counter()
+    for _ in range(3):
+        cliente.chat(MENSAJES)
+    assert time.perf_counter() - empezado < 1.0
+
+
+def test_la_latencia_de_respond_no_incluye_la_espera(config):
+    """``latency_ms`` mide el trabajo del chatbot, no el rate limit.
+
+    Con el bug B-02, una interacción de la condición A con 12 s de espaciado
+    reportaba ~12 500 ms de ``latency_ms`` cuando la llamada había tardado 900.
+    Peor: la condición B salía más rápida que la A, porque sus interacciones
+    bloqueadas por L3 no llamaban a la API y no esperaban.
+    """
+    from src.chatbot_a import respond
+    from src.config import load_config
+    from src.prompts import load_prompts
+
+    base = load_config(require_api_key=False)
+    espaciado = replace(
+        base,
+        rate_limit=RateLimitParams(
+            min_seconds_between_calls=5.0, max_retries=0, backoff_base_seconds=0.001
+        ),
+    )
+
+    class ClienteInstantaneo:
+        def chat(self, messages):
+            return {
+                "text": "ok", "model_reported": "fake", "tokens_in": 1, "tokens_out": 1,
+                "latency_ms": 900.0, "finish_reason": "stop", "truncated": False,
+                "reasoning": None,
+            }
+
+        # Dos interacciones seguidas: si alguna durmiera, se notaría.
+
+    prompts = load_prompts(base)
+    for _ in range(2):
+        resultado = respond(
+            "hola", client=ClienteInstantaneo(), prompts=prompts, config=espaciado
+        )
+        assert resultado["latency_ms"] < 1000, (
+            f"latency_ms={resultado['latency_ms']:.0f} ms: parece incluir la espera "
+            "de rate limit (bug B-02)."
+        )
+        assert resultado["api_latency_ms"] == 900.0
+
+
+def test_el_pacer_espacia_las_llamadas(config):
+    """El ``Pacer`` sí espera, pero fuera del cronómetro de ``respond()``."""
+    from src.llm_client import Pacer
+
+    pacer = Pacer(0.3)
+    assert pacer.wait() == 0.0  # la primera nunca espera
+    empezado = time.perf_counter()
+    dormido = pacer.wait()
+    transcurrido = time.perf_counter() - empezado
+    assert 0.2 < dormido <= 0.3
+    assert transcurrido >= 0.2
+    assert pacer.total_slept > 0
+
+
+def test_el_pacer_con_cero_no_espera_nunca():
+    """En ``--dry-run`` y en los tests no hay API a la que ser cortés."""
+    from src.llm_client import Pacer
+
+    pacer = Pacer(0.0)
+    for _ in range(3):
+        assert pacer.wait() == 0.0
+    assert pacer.total_slept == 0.0

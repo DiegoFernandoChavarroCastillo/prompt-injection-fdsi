@@ -12,12 +12,19 @@ Responsabilidades:
   ``reasoning_effort`` e ``include_reasoning``, que viajan en ``extra_body``
   cuando el SDK no los tipa—. No se pueden sobreescribir por llamada: son
   variables controladas, no opciones.
-* Espaciar las llamadas (``min_seconds_between_calls``) para no gatillar el
-  rate limit del proveedor.
 * Reintentar con backoff exponencial ante 429, errores 5xx y fallos de red.
 * Reportar el modelo que la API dice haber usado (``model_reported``), que es
   el identificador exacto que debe citarse en la Tabla 6 del artículo.
 * Medir la latencia de la llamada exitosa.
+
+El espaciado entre llamadas NO vive aquí: lo aplica quien orquesta la corrida
+(:mod:`src.runner`), entre interacciones, con :class:`Pacer`. El motivo es que
+dormir dentro de ``chat()`` metía la espera dentro de ``respond()``, y
+``latency_ms`` —que cronometra ``respond()`` de punta a punta— acababa midiendo
+sobre todo el rate limit en vez del trabajo del chatbot. Con 12 s de espaciado,
+la condición B llegó a parecer más rápida que la A en el piloto del 18-sep-2026,
+porque sus interacciones bloqueadas por L3 no llamaban a la API y no esperaban.
+Ver ``notas/BLOQUEOS.md``, entrada B-02.
 
 El proveedor es intercambiable: Groq y Gemini exponen endpoints compatibles con
 OpenAI, así que basta cambiar ``base_url``/``model`` en el YAML (o ``LLM_BASE_URL``
@@ -98,8 +105,6 @@ class LLMClient:
                 "include_reasoning": inference.include_reasoning
             }
 
-        # Instante (monotónico) en que terminó la última llamada; None = ninguna aún.
-        self._last_call_at: float | None = None
         # Generador propio: no tocamos el estado del `random` global, que el
         # runner usa con `execution_seed` para el orden de ejecución.
         self._jitter = random.Random(0xC0FFEE)
@@ -149,7 +154,6 @@ class LLMClient:
 
         # max_retries reintentos => max_retries + 1 intentos en total.
         for attempt in range(rl.max_retries + 1):
-            self._respect_min_spacing()
             try:
                 started = time.perf_counter()
                 response = self._client.chat.completions.create(
@@ -163,14 +167,12 @@ class LLMClient:
                 latency_ms = (time.perf_counter() - started) * 1000.0
             except (RateLimitError, APITimeoutError, APIConnectionError) as exc:
                 last_error = exc
-                self._last_call_at = time.monotonic()
                 if attempt == rl.max_retries:
                     break
                 self._sleep_before_retry(attempt, exc)
                 continue
             except APIStatusError as exc:
                 last_error = exc
-                self._last_call_at = time.monotonic()
                 if exc.status_code not in RETRYABLE_STATUS_CODES:
                     # 401, 400, 404...: reintentar no arregla nada.
                     raise LLMCallError(
@@ -185,7 +187,6 @@ class LLMClient:
                 # Error de cliente/SDK (p. ej. base_url inválida): no se reintenta.
                 raise LLMCallError(f"Error del cliente LLM: {exc}") from exc
 
-            self._last_call_at = time.monotonic()
             return self._to_result(response, latency_ms)
 
         raise LLMCallError(
@@ -206,21 +207,6 @@ class LLMClient:
                 raise ValueError(f"messages[{i}] debe ser un dict.")
             if "role" not in message or "content" not in message:
                 raise ValueError(f"messages[{i}] necesita las claves 'role' y 'content'.")
-
-    def _respect_min_spacing(self) -> None:
-        """Duerme lo necesario para cumplir ``min_seconds_between_calls``.
-
-        Se usa ``time.monotonic`` (no ``time.time``) para que un ajuste del reloj
-        del sistema no altere el espaciado.
-        """
-        minimum = self.config.rate_limit.min_seconds_between_calls
-        if self._last_call_at is None or minimum <= 0:
-            return
-        elapsed = time.monotonic() - self._last_call_at
-        remaining = minimum - elapsed
-        if remaining > 0:
-            logger.debug("Espaciado de rate limit: durmiendo %.2f s", remaining)
-            time.sleep(remaining)
 
     def _sleep_before_retry(self, attempt: int, exc: Exception) -> None:
         """Espera exponencial (con jitter) antes del siguiente intento."""
@@ -328,3 +314,45 @@ class LLMClient:
             truncated,
         )
         return result
+
+
+class Pacer:
+    """Espacia las llamadas a la API, FUERA del cronómetro de ``respond()``.
+
+    Vive aquí, junto al cliente, porque es política de rate limit; pero lo usa
+    quien orquesta una corrida —:mod:`src.runner`, ``scripts/calibrate_l5.py``—
+    entre interacciones, nunca dentro de ellas.
+
+    Esa separación es la corrección del bug B-02: cuando el espaciado dormía
+    dentro de ``LLMClient.chat()``, la espera quedaba dentro de ``respond()`` y
+    ``latency_ms`` medía sobre todo el rate limit. Peor aún, lo medía de forma
+    desigual entre condiciones: las interacciones que L3 bloquea no llaman a la
+    API y por tanto no esperaban, así que la condición defendida parecía más
+    rápida que la línea base.
+
+    Args:
+        min_seconds: separación mínima entre dos llamadas consecutivas. Con 0 o
+            menos, no espera nunca (útil en ``--dry-run`` y en los tests).
+    """
+
+    def __init__(self, min_seconds: float) -> None:
+        self.min_seconds = min_seconds
+        self._last_at: float | None = None
+        self.total_slept = 0.0
+
+    def wait(self) -> float:
+        """Duerme lo que falte para respetar la separación. Devuelve cuánto durmió.
+
+        Se usa ``time.monotonic`` (no ``time.time``) para que un ajuste del reloj
+        del sistema no altere el espaciado.
+        """
+        if self._last_at is None or self.min_seconds <= 0:
+            self._last_at = time.monotonic()
+            return 0.0
+        restante = self.min_seconds - (time.monotonic() - self._last_at)
+        if restante > 0:
+            logger.debug("Espaciado de rate limit: durmiendo %.2f s", restante)
+            time.sleep(restante)
+            self.total_slept += restante
+        self._last_at = time.monotonic()
+        return max(restante, 0.0)

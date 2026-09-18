@@ -178,7 +178,10 @@ def respond(
         * ``tokens_in`` (int | None), ``tokens_out`` (int | None): uso de la API;
           ``None`` si L3 bloqueó y no hubo llamada.
         * ``latency_ms`` (float): tiempo TOTAL de ``respond()``, de entrada a
-          salida, capas incluidas.
+          salida, capas incluidas. NO incluye la espera de rate limit: el
+          espaciado entre llamadas lo aplica el runner entre interacciones, no
+          ``respond()``. Sí incluiría los reintentos con backoff si los hubiera,
+          porque esa interacción tardó realmente más.
         * ``api_latency_ms`` (float | None): latencia de la llamada al modelo,
           tal como la mide :class:`src.llm_client.LLMClient`. ``None`` si no
           hubo llamada (L3 bloqueó en la condición B).
@@ -187,8 +190,12 @@ def respond(
           ``api_latency_ms`` entre B y A refleja el contexto más largo que
           procesa el modelo, y la diferencia ``latency_ms - api_latency_ms``
           refleja el costo de las capas deterministas (L1, L3, L5), que es
-          trabajo local y no depende del proveedor. Con una sola cifra ambos
-          efectos quedarían mezclados y el sobrecosto sería inatribuible.
+          trabajo local y no depende del proveedor.
+
+          Esa segunda resta solo es interpretable desde el arreglo de B-02
+          (2026-09-18). En el log del piloto, anterior al arreglo, ``latency_ms``
+          incluye los 12 s de espaciado y no debe usarse: el sobrecosto de
+          latencia del piloto se reporta solo con ``api_latency_ms``.
         * ``model_reported`` (str | None): modelo que reportó la API; ``None`` si
           L3 bloqueó.
         * ``truncated`` (bool): si la respuesta se cortó por ``max_tokens``.

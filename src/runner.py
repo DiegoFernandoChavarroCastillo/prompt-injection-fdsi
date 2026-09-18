@@ -16,6 +16,12 @@ Tres decisiones que sostienen la validez de lo que se mide:
 * **Sesión limpia por intento.** Cada interacción construye su contexto desde
   cero. No hay historial acumulado: el experimento mide inyección directa de un
   solo turno, y arrastrar turnos anteriores cambiaría el fenómeno.
+* **El espaciado va aquí, entre interacciones.** Esperar por cortesía con la API
+  no es parte de responder, así que la espera se aplica en este bucle y no
+  dentro de ``respond()``. Si durmiera dentro, ``latency_ms`` mediría sobre todo
+  el rate limit y, peor, lo mediría de forma desigual entre condiciones: las
+  interacciones que L3 bloquea no llaman a la API y no esperarían. Ver
+  ``notas/BLOQUEOS.md``, entrada B-02.
 * **Los errores no son fallos del ataque.** Un :class:`~src.llm_client.LLMCallError`
   se registra con ``status="error"`` y sin respuesta. Contarlo como ataque
   fallido sobrestimaría la defensa: un timeout no es evidencia de nada.
@@ -47,7 +53,7 @@ from typing import Any, Iterable
 from src import chatbot_a, chatbot_b
 from src.battery import load_attacks, load_benign
 from src.config import Config, ConfigError, get_config
-from src.llm_client import LLMCallError, LLMClient
+from src.llm_client import LLMCallError, LLMClient, Pacer
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +252,8 @@ def run_battery(
     # Un solo cliente para toda la corrida: reconstruirlo en cada interacción
     # reiniciaría su espaciado de rate limit y dispararía los 429.
     client = _ClienteFalso() if dry_run else LLMClient(config)
+    # Sin espera en dry-run: no hay API a la que ser cortés.
+    pacer = Pacer(0.0 if dry_run else config.rate_limit.min_seconds_between_calls)
 
     destino.parent.mkdir(parents=True, exist_ok=True)
     ejecutadas = saltadas = errores = 0
@@ -255,6 +263,10 @@ def run_battery(
             if tarea.clave in hechas:
                 saltadas += 1
                 continue
+            # La espera va FUERA de ejecutar_tarea: no debe contar como latencia
+            # del chatbot. Una interacción que L3 bloquee tampoco llamará a la
+            # API, pero se espacia igual, porque el siguiente sí lo hará.
+            pacer.wait()
             fila = ejecutar_tarea(tarea, orden, config, client, run_id, commit)
             salida.write(json.dumps(fila, ensure_ascii=False) + "\n")
             salida.flush()  # un corte no debe perder lo ya ejecutado
@@ -273,6 +285,7 @@ def run_battery(
         "ejecutadas": ejecutadas,
         "saltadas": saltadas,
         "errores": errores,
+        "segundos_esperando": round(pacer.total_slept, 1),
         "destino": str(destino),
     }
 
@@ -319,6 +332,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     print(f"  ejecutadas     : {resumen['ejecutadas']}")
     print(f"  saltadas       : {resumen['saltadas']} (ya estaban en el log)")
     print(f"  errores        : {resumen['errores']}")
+    print(f"  espera total   : {resumen['segundos_esperando']:.0f} s de rate limit "
+          f"(fuera de latency_ms)")
     print(f"  log            : {resumen['destino']}")
     if resumen["errores"]:
         print("\n  Vuelve a lanzar el mismo comando para reintentar solo los errores.")

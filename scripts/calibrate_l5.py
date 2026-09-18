@@ -37,7 +37,7 @@ from src.battery import load_benign, load_dev_set  # noqa: E402
 from src.chatbot_b import respond  # noqa: E402
 from src.config import ConfigError, get_config  # noqa: E402
 from src.defenses import l3_input_filter, l5_output_validator  # noqa: E402
-from src.llm_client import LLMCallError, LLMClient  # noqa: E402
+from src.llm_client import LLMCallError, LLMClient, Pacer  # noqa: E402
 
 
 class L5EnModoRegistro:
@@ -77,12 +77,16 @@ def main() -> int:
     casos += [(b["id"], b["payload"], "desarrollo") for b in load_dev_set()["benign"]]
 
     cliente = LLMClient(config)
+    # El espaciado vive fuera del cliente desde el arreglo de B-02; quien hace
+    # una tanda de llamadas debe aplicarlo por su cuenta.
+    pacer = Pacer(config.rate_limit.min_seconds_between_calls)
     filas = []
     errores = 0
 
     for i, (pid, payload, origen) in enumerate(casos, 1):
         registro = L5EnModoRegistro(config)
         print(f"[{i}/{len(casos)}] {pid} ({origen})", file=sys.stderr)
+        pacer.wait()
         try:
             resultado = respond(
                 payload, client=cliente, config=config,
