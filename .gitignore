@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Artefactos del experimento (proyecto FDSI)
+# ---------------------------------------------------------------------------
+# Los logs y resultados son datos generados: se regeneran corriendo el runner y
+# pueden ser grandes. Lo que sí se versiona es lo que los hace reproducibles
+# (config/, prompts/, data/). Los .gitkeep mantienen la estructura de carpetas.
+logs/**/*.jsonl
+results/**/*
+# Re-incluye los directorios (git no desciende a un directorio excluido) y
+# los .gitkeep, para que la estructura de carpetas sí quede versionada.
+!results/**/
+!logs/pilot/.gitkeep
+!results/pilot/.gitkeep

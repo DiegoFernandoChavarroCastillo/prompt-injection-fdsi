@@ -1,0 +1,13 @@
+# Dependencias del proyecto — versiones FIJADAS a propósito.
+#
+# La reproducibilidad del experimento depende de que todo el equipo corra el
+# mismo stack: un cambio de versión del SDK puede alterar cómo se serializan los
+# parámetros de inferencia o qué devuelve la API. No actualizar sin acuerdo del
+# equipo y sin volver a correr el smoke test.
+#
+# Python 3.12.14  (ver README, sección "Parámetros congelados")
+
+openai==3.15.0          # SDK usado contra el endpoint compatible de Groq/Gemini
+python-dotenv==1.2.3    # carga de .env; la API key nunca va en el código
+PyYAML==6.0.3           # lectura de config/experiment.yaml
+pytest==9.1.1           # suite de pruebas

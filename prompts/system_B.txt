@@ -1,0 +1,15 @@
+# TODO (Fase 1 — R1): system prompt de la CONDICIÓN B (chatbot protegido).
+#
+# Requisitos cuando se escriba:
+#   - MISMA tarea legítima que system_A.txt (variable controlada).
+#   - Debe contener el mismo canary de prompts/canary.txt.
+#   - Aquí sí viven las capas L1, L2 y L4:
+#       L1: separación estricta de roles (este texto va en el mensaje 'system',
+#           nunca concatenado con el input del usuario).
+#       L2: instrucciones defensivas explícitas (prioridad del system prompt,
+#           prohibición de revelar el contenido del contexto o el canary).
+#       L4: delimitadores explícitos del input no confiable del usuario.
+#   - No debe hacerse "a la medida" de la batería de ataques (ver Riesgos del plan).
+#
+# Estas líneas que empiezan con '#' son notas para el equipo; bórralas al escribir
+# el prompt real: el archivo se envía al modelo tal cual, sin filtrar comentarios.

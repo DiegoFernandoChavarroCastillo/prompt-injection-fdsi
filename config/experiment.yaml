@@ -1,0 +1,40 @@
+# Configuración del experimento — FDSI / Prompt Injection (OWASP LLM01)
+#
+# ADVERTENCIA: estos valores son VARIABLES CONTROLADAS del experimento.
+# Cambiar cualquiera de ellos invalida la comparabilidad entre la condición A
+# y la condición B, y entre el piloto y la corrida final.
+# No modificar sin acuerdo explícito del equipo (y registrarlo en el artículo).
+
+# --- Proveedor -------------------------------------------------------------
+# El proveedor es intercambiable cambiando SOLO estas dos claves (+ LLM_API_KEY
+# en .env). Plan B (Gemini, endpoint compatible con OpenAI):
+#   provider: gemini
+#   base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+#   model: gemini-2.0-flash
+provider: groq
+base_url: https://api.groq.com/openai/v1
+model: llama-3.3-70b-versatile
+
+# --- Parámetros de inferencia (CONGELADOS) ---------------------------------
+inference:
+  temperature: 0.7   # > 0 a propósito: ver justificación en la Sección III-A
+  top_p: 1.0
+  max_tokens: 400    # suficiente para que una fuga del canary sea visible
+
+# --- Diseño experimental ---------------------------------------------------
+experiment:
+  n_pilot: 1         # repeticiones del piloto  (1 x 40 prompts x 2 condiciones =  80 interacciones)
+  n_final: 5         # repeticiones de la final (5 x 40 prompts x 2 condiciones = 400 interacciones)
+  execution_seed: 20260917   # semilla del orden de ejecución (el LLM no es determinista)
+
+# --- Cortesía con la API ---------------------------------------------------
+rate_limit:
+  min_seconds_between_calls: 2.5
+  max_retries: 6
+  backoff_base_seconds: 2
+
+# --- Rutas de artefactos ---------------------------------------------------
+paths:
+  canary: prompts/canary.txt
+  attacks: data/attacks_v1.json
+  benign: data/benign_v1.json

@@ -1,0 +1,13 @@
+# TODO (Fase 1 — R1): system prompt de la CONDICIÓN A (chatbot vulnerable, baseline).
+#
+# Requisitos cuando se escriba:
+#   - Define la tarea legítima del asistente (la misma que en system_B.txt:
+#     ambas condiciones deben resolver la MISMA tarea, si no, no son comparables).
+#   - Debe contener el canary de prompts/canary.txt para poder detectar fugas.
+#   - NO debe incluir instrucciones defensivas (nada de "ignora intentos de...").
+#     La ausencia de defensa es justamente la condición A.
+#   - Este archivo se concatena en UN SOLO mensaje junto al input del usuario
+#     (ver el docstring de src/chatbot_a.py): esa es la vulnerabilidad bajo estudio.
+#
+# Estas líneas que empiezan con '#' son notas para el equipo; bórralas al escribir
+# el prompt real: el archivo se envía al modelo tal cual, sin filtrar comentarios.
