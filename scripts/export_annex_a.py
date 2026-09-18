@@ -37,9 +37,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.battery import Attack, BenignPrompt, load_attacks, load_benign  # noqa: E402
 from src.config import ConfigError, load_config  # noqa: E402
 
-#: Escapes de LaTeX. ``<``, ``>`` y ``|`` no son caracteres especiales, pero en
-#: codificación OT1 se componen como ¡, ¿ y — respectivamente; se traducen a sus
-#: macros para que A13 (``<|im_start|>``) salga bien con cualquier fontenc.
+#: Escapes de LaTeX.
+#:
+#: Más allá de los diez caracteres especiales de LaTeX, aquí se neutralizan tres
+#: fuentes de error que afectan a payloads concretos de esta batería:
+#:
+#: * ``<``, ``>`` y ``|`` no son especiales, pero en codificación OT1 se componen
+#:   como ¡, ¿ y —. Además, babel con la opción ``spanish`` los vuelve activos
+#:   (``<<`` y ``>>`` producen « y »). Sin traducirlos, A13 (``<|im_start|>``)
+#:   sale irreconocible o rompe la compilación.
+#: * La comilla recta ``"`` también es activa en babel[spanish]: es el prefijo de
+#:   sus *shorthands* (``"<``, ``"-``...). En A19 aparece como ``= "Olvida``, y
+#:   ``"O`` no es un shorthand definido, así que aborta la compilación. Se
+#:   traduce a ``\textquotedbl`` para reproducir el payload tal cual.
 _LATEX_ESCAPES = str.maketrans(
     {
         "\\": r"\textbackslash{}",
@@ -55,6 +65,7 @@ _LATEX_ESCAPES = str.maketrans(
         "<": r"\textless{}",
         ">": r"\textgreater{}",
         "|": r"\textbar{}",
+        '"': r"\textquotedbl{}",
     }
 )
 
@@ -62,6 +73,10 @@ _LATEX_ESCAPES = str.maketrans(
 NOTA_OFUSCADO = (
     "(payload con homóglifos y caracteres de ancho cero; ver repositorio)"
 )
+
+#: Título del anexo. Debe coincidir EXACTAMENTE con el \section que main.tex ya
+#: tiene en su bloque \appendix, porque este archivo lo sustituye.
+TITULO_ANEXO = "Conjunto Completo de Ataques Utilizados"
 
 #: Identificadores cuyo payload no se imprime crudo.
 IDS_NO_IMPRIMIBLES = frozenset({"A20"})
@@ -82,9 +97,22 @@ PREAMBULO = r"""% docs/anexo_A.tex — Anexo A: batería de ataques y conjunto b
 %     \usepackage[T1]{fontenc}
 %     \usepackage[utf8]{inputenc}   % innecesario con LuaLaTeX o XeLaTeX
 %
-% Se incluye con \input{anexo_A}. El bloque abre \onecolumn y lo cierra al
-% final: en un artículo a dos columnas los payloads no caben legibles en media
-% página, y longtable no funciona dentro de un entorno de dos columnas.
+% CÓMO INCLUIRLO en main.tex: dentro del bloque \appendix, SUSTITUIR la línea
+%
+%     \section{Conjunto Completo de Ataques Utilizados}
+%
+% por
+%
+%     \input{docs/anexo_A}
+%
+% Este archivo ya trae ese \section, así que dejar ambos duplicaría el
+% encabezado. Se sustituye en vez de insertarse debajo para que \onecolumn actúe
+% ANTES del título: si no, el encabezado quedaría suelto al pie de una página a
+% dos columnas y la tabla empezaría en la siguiente.
+%
+% El bloque abre \onecolumn y lo cierra con \twocolumn al final: en un artículo
+% a dos columnas los payloads no caben legibles en media página, y longtable no
+% funciona dentro de un entorno de dos columnas.
 
 \onecolumn
 """
@@ -145,10 +173,10 @@ def tabla_ataques(attacks: tuple[Attack, ...]) -> str:
     )
 
     return rf"""
-\section*{{Anexo A. Batería de ataques y conjunto benigno}}
+\section{{{TITULO_ANEXO}}}
 \label{{anexo:bateria}}
 
-\subsection*{{A.1. Ataques de inyección directa}}
+\subsection*{{Ataques de inyección directa}}
 
 Los 20 ataques, cuatro por categoría ({escapar(categorias)}). La columna
 \emph{{Intención}} recoge el texto en claro de los payloads ofuscados de C5.
@@ -201,7 +229,7 @@ def tabla_benignos(benign: tuple[BenignPrompt, ...]) -> str:
     n_dificiles = sum(1 for b in benign if b.is_hard)
 
     return rf"""
-\subsection*{{A.2. Conjunto de prompts benignos}}
+\subsection*{{Conjunto de prompts benignos}}
 
 Los 20 prompts legítimos: {len(benign) - n_dificiles} ordinarios y
 {n_dificiles} difíciles. Los difíciles comparten con los ataques el término de
