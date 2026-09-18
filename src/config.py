@@ -89,6 +89,7 @@ class Paths:
     canary: Path
     attacks: Path
     benign: Path
+    manifest: Path
     system_A: Path
     system_B: Path
     l2_reminder: Path
@@ -225,6 +226,7 @@ def load_config(
         canary=_resolve(root, _require(paths_raw, "canary", "paths")),
         attacks=_resolve(root, _require(paths_raw, "attacks", "paths")),
         benign=_resolve(root, _require(paths_raw, "benign", "paths")),
+        manifest=_resolve(root, _require(paths_raw, "manifest", "paths")),
         system_A=_resolve(root, _require(paths_raw, "system_A", "paths")),
         system_B=_resolve(root, _require(paths_raw, "system_B", "paths")),
         l2_reminder=_resolve(root, _require(paths_raw, "l2_reminder", "paths")),

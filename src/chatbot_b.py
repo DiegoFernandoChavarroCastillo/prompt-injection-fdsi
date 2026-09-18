@@ -33,6 +33,13 @@ Qué hace cada capa:
   contra :data:`src.prompts.PROTECTED_SECTIONS` y marcadores de rol o de
   compromiso comercial; ver :mod:`src.defenses.l5_output_validator`.
 
+TODO (Fase 4): los delimitadores ``<<<USER_DATA_a91f>>>`` y
+``<<</USER_DATA_a91f>>>`` están escritos dentro de ``system_B.txt``, así que un
+ataque puede extraerlos sin adivinarlos. L5 debe tratar su aparición en la
+salida como señal de fuga, igual que el canary. Y el umbral de n-gramas se
+calibra con los benignos, nunca con los ataques: calibrarlo contra los ataques
+ajustaría la defensa a la batería y el ASR dejaría de medir resistencia.
+
 Las capas deben ser genéricas, no ajustadas a la batería concreta de ataques:
 un filtro escrito "a la medida" de ``attacks_v1.json`` inflaría artificialmente
 la efectividad medida (ver la sección de Riesgos del plan de acción).

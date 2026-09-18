@@ -75,6 +75,18 @@ del modelo que va en la Tabla 6 del artículo**, no el alias del YAML.
 pytest
 ```
 
+### Batería: verificar el preregistro
+
+```bash
+python scripts/freeze_battery.py
+```
+
+Compara los SHA-256 de `data/attacks_v1.json` y `data/benign_v1.json` con
+`data/MANIFEST.txt`. La batería está **congelada**: se escribió antes de implementar L3 y
+L5, y esa es la razón por la que el ASR mide la resistencia del filtro y no lo bien que la
+batería se ajustó a él. Si los archivos cambian, `pytest` falla; re-congelar exige
+`--force` y debe documentarse en el artículo.
+
 ### Informe de prompts (evidencia de simetría para el Anexo B)
 
 ```bash
@@ -125,9 +137,11 @@ prompt-injection-fdsi/
 ├── config/experiment.yaml     # variables controladas del experimento
 ├── prompts/                   # system prompts de A y B, canary, recordatorio L2, mensajes
 ├── data/                      # batería: 20 ataques + 20 benignos (Anexo A)
+│   └── MANIFEST.txt           # hashes del preregistro de la batería
 ├── src/
 │   ├── config.py              # carga y valida la configuración (inmutable)
 │   ├── prompts.py             # carga los prompts y acota el cotejo de L5
+│   ├── battery.py             # carga la batería y verifica su preregistro
 │   ├── llm_client.py          # ÚNICA puerta hacia la API
 │   ├── chatbot_a.py           # condición A (vulnerable)
 │   ├── chatbot_b.py           # condición B (5 capas)
@@ -137,7 +151,8 @@ prompt-injection-fdsi/
 │   └── metrics.py             # ASR, FPR y sobrecosto
 ├── scripts/
 │   ├── smoke_test.py          # una llamada de prueba a la API
-│   └── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
+│   ├── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
+│   └── freeze_battery.py      # congela la batería (preregistro)
 ├── tests/                     # pruebas que no consumen cuota
 ├── logs/pilot/                # datos crudos del piloto (no versionados)
 └── results/pilot/             # tablas derivadas (no versionadas)
@@ -156,7 +171,7 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 |---|---|---|
 | **0 — Decisiones y configuración inicial** | Repo, `.gitignore`, `.env`, configuración congelada, cliente LLM, smoke test | ✅ **Hecha** |
 | **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
-| 2 — Batería de ataques y benignos | 40 prompts con metadatos, congelados como `v1` (Anexo A) | ⬜ Pendiente |
+| **2 — Batería de ataques y benignos** | 40 prompts con metadatos, congelados como `v1` y preregistrados (tag `battery-v1`) | ✅ **Hecha** |
 | 3 — Condición A | Chatbot vulnerable (Listing 1) | ⬜ Pendiente |
 | 4 — Condición B | Las cinco capas L1–L5, misma firma `respond()` que A (L4 ya está en `system_B.txt`) | ⬜ Pendiente |
 | 5 — Ejecutor y logs | `runner.py`, logs JSONL reprocesables | ⬜ Pendiente |
@@ -168,8 +183,10 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 ### Qué hay hoy en el repositorio
 
 Lo que ya funciona: la configuración (`src/config.py`), el cliente de la API
-(`src/llm_client.py`), la carga de prompts (`src/prompts.py`), los dos scripts y sus
-pruebas. Los system prompts de ambas condiciones están escritos y su simetría verificada.
+(`src/llm_client.py`), la carga de prompts (`src/prompts.py`), la carga de la batería
+(`src/battery.py`), los cuatro scripts y sus pruebas. Los system prompts de ambas
+condiciones están escritos y su simetría verificada; la batería de 20 ataques y 20
+benignos está congelada y preregistrada.
 Todo lo demás son **stubs** con su contrato documentado en el docstring y
 `raise NotImplementedError`: la firma y el formato de retorno ya están acordados, así que
 las fases siguientes pueden avanzar en paralelo sin chocar entre sí.

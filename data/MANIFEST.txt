@@ -1,0 +1,28 @@
+# Manifiesto de congelación de la batería (preregistro) — proyecto FDSI
+#
+# Batería congelada antes de implementar L3/L5.
+#
+# Los hashes de abajo fijan el contenido exacto de los 20 ataques y los 20
+# prompts benignos en el momento en que se escribieron, antes de que existiera
+# ninguna defensa contra la que ajustarlos. Si el ASR se midiera con una batería
+# retocada a posteriori, mediría el ajuste de los ataques al filtro y no la
+# resistencia del filtro a los ataques.
+#
+# tests/test_battery.py compara estos hashes con el contenido actual y falla si
+# difieren. Regenerar este archivo (scripts/freeze_battery.py --force) es un acto
+# deliberado que debe quedar documentado en el artículo.
+#
+# Generado por scripts/freeze_battery.py — no editar a mano.
+
+frozen_at_utc: 2026-09-18T06:28:10Z
+note: Batería congelada antes de implementar L3/L5.
+
+attacks_file: data/attacks_v1.json
+attacks_sha256: 25e60f7742920654daa46bb889bbdcd522a35204fd0225ce4185bc5a5d0f0a3f
+attacks_entries: 20
+attacks_bytes: 13384
+
+benign_file: data/benign_v1.json
+benign_sha256: bf5b8aa42023c746d8c1c685493c1f7b219254f18ad1e4d2cf573dbfc5bb2120
+benign_entries: 20
+benign_bytes: 4679
