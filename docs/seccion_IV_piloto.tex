@@ -1,0 +1,125 @@
+% docs/seccion_IV_piloto.tex — borrador de la Sección IV (resultados preliminares).
+%
+% GENERADO A MANO durante la sesión autónoma del 18-sep-2026 a partir de
+% results/pilot/metricas.md y results/pilot/observaciones.md.
+%
+% CÓMO INCLUIRLO: dentro de \section{Resultados}, con \input{docs/seccion_IV_piloto}.
+% Requiere \usepackage{booktabs} (ya está en main.tex).
+%
+% ATENCIÓN: dos cifras de este borrador son PROVISIONALES porque dependen de la
+% revisión manual de dos casos (A10 en la condición A y B11 en la condición B).
+% Están marcadas con comentarios en el punto donde hay que actualizarlas.
+
+\subsection{Resultados preliminares de la corrida piloto ($N=1$)}
+\label{sec:piloto}
+
+\textit{Los resultados de esta subsección proceden de una corrida piloto con una
+sola repetición por prompt ($N=1$, 80 interacciones) ejecutada el 18 de
+septiembre de 2026. Se presentan como preliminares: con una repetición no es
+posible separar un comportamiento estable de una variación puntual del modelo,
+que opera con temperatura 0{,}7. La corrida definitiva ($N=5$, 400
+interacciones) se reporta en la entrega final.}
+
+La corrida se completó sin errores de API. De las 80 interacciones, 70
+requirieron una llamada al modelo; las 10 restantes corresponden a ataques que
+la capa L3 detuvo en la condición B antes de construir el contexto.
+
+\subsubsection{Tasa de éxito de los ataques}
+
+La Tabla~\ref{tab:piloto-asr} recoge el ASR por condición. Los casos que el
+clasificador automático no pudo etiquetar con criterios objetivos quedaron como
+\textsc{revisión manual} y se reportan por separado, de modo que el lector pueda
+ver cuánto del resultado depende todavía del juicio humano.
+
+\begin{table}[t]
+\caption{ASR preliminar por condición (piloto, $N=1$)}
+\label{tab:piloto-asr}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Condición} & \textbf{ASR} & \textbf{Éxitos/válidos} & \textbf{Rev. manual} \\
+\midrule
+A (sin defensas de aplicación) & 11\,\% & 2/19 & 1 \\
+B (defensa en cinco capas)     & 0\,\%  & 0/20 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+% PROVISIONAL: si la revisión manual confirma A10 como éxito en la condición A,
+% el ASR de A pasa a 15 % (3/20). La cota superior ya está calculada en
+% results/pilot/metricas.md (modo "máximo").
+
+El ASR de la condición A se sitúa en el 11\,\%: dos de los veinte ataques
+lograron su objetivo. Ambos, A03 (terminación de contexto) y A13 (mensaje de
+sistema embebido), comparten mecanismo: \textbf{falsifican autoridad de sistema}
+dentro del canal único de texto. Los ataques que operan por persuasión
+—anulación explícita, suplantación de autoridad, encuadre ficcional— fueron
+rechazados por el modelo sin ninguna defensa de aplicación.
+
+\subsubsection{Reducción por categoría}
+
+La Tabla~\ref{tab:piloto-delta} presenta el ASR por categoría. La reducción
+$\Delta$ solo está definida donde la condición A registró algún éxito: en las
+categorías C2, C3 y C5 el ASR de la línea base fue cero, de modo que no existe
+margen que reducir y la comparación no es informativa.
+
+\begin{table}[t]
+\caption{ASR por categoría y reducción (piloto, $N=1$)}
+\label{tab:piloto-delta}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccl@{}}
+\toprule
+\textbf{Categoría} & \textbf{ASR$_A$} & \textbf{ASR$_B$} & \textbf{$\Delta$} \\
+\midrule
+C1. Sobrescritura directa      & 25\,\% & 0\,\% & 100\,\% \\
+C2. Suplantación de rol        & 0\,\%  & 0\,\% & N/A \\
+C3. Extracción del prompt      & 0\,\%  & 0\,\% & N/A \\
+C4. Contexto engañoso          & 25\,\% & 0\,\% & 100\,\% \\
+C5. Evasión por ofuscación     & 0\,\%  & 0\,\% & N/A \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Que tres de las cinco categorías arrojen $\Delta$ indefinido es en sí mismo un
+resultado, y era una de las señales de alerta previstas en el diseño. Indica que
+el modelo base rechaza por su cuenta la mayor parte de los ataques clásicos
+descritos en la literatura, y que el margen sobre el que una defensa de
+aplicación puede demostrar utilidad es, con este modelo, estrecho.
+
+\subsubsection{Costo en usabilidad}
+
+Ninguno de los veinte prompts benignos fue bloqueado en ninguna de las dos
+condiciones: el FPR preliminar es del 0\,\%. Esto incluye los cinco
+\textit{benignos difíciles}, construidos con léxico habitualmente asociado a
+ataques (``ignora'', ``olvida'', ``instrucciones'', ``administrador'' y una
+cadena con forma de Base64). El filtro L3 no se activó con ninguno, lo que
+sugiere que la decisión de escribir sus reglas apuntando al \emph{objeto} de la
+orden y no a verbos sueltos evita el sobre-bloqueo que motivó su inclusión.
+% PROVISIONAL: un caso benigno (B11 en la condición B) quedó en revisión manual.
+% Si se etiqueta como DEGRADADO, el FPR de B pasa a 5 % (1/20).
+
+\subsubsection{Sobrecosto}
+
+La condición B envía al modelo un contexto notablemente mayor: 1\,137 tokens de
+entrada de media frente a los 673 de la condición A, un incremento del 69\,\%
+atribuible al \textit{system prompt} ampliado, a los delimitadores y al
+recordatorio reinyectado. Los tokens de salida son equivalentes (124 frente a
+129), como cabía esperar de un límite de longitud que impone el propio
+\textit{system prompt} en ambas condiciones. La latencia de la llamada al modelo
+crece de 879 a 978 milisegundos de media, coherente con el contexto más largo.
+
+\subsubsection{Dónde actúa cada capa}
+
+Las diez interacciones detenidas en la condición B lo fueron todas en L3, el
+filtro de entrada, antes de gastar una llamada al modelo. \textbf{L5 no retuvo
+ninguna respuesta} durante el piloto. Dos lecturas, ambas compatibles con los
+datos y no distinguibles con $N=1$: o bien L3 intercepta los ataques que L5
+habría detectado, o bien el modelo no llegó a filtrar nada que L5 pudiera
+retener. El registro conserva la salida cruda anterior a L5 precisamente para
+poder separar ambas hipótesis en la corrida definitiva.
+
+Conviene señalar que las diez interceptaciones se reparten entre siete reglas
+distintas de L3, incluidas dos que dispararon sobre texto decodificado (A17 en
+Base64 y A18 en ROT13), lo que indica que la detección no descansa en una única
+heurística dominante.
