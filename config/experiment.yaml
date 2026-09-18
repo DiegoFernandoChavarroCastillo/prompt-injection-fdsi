@@ -83,9 +83,29 @@ experiment:
   n_final: 5         # repeticiones de la final (5 x 40 prompts x 2 condiciones = 400 interacciones)
   execution_seed: 20260917   # semilla del orden de ejecución (el LLM no es determinista)
 
+# --- Defensas de la condición B --------------------------------------------
+# Estas claves SÍ pueden ajustarse (no son parámetros de inferencia), pero solo
+# calibrando contra prompts benignos, nunca contra los ataques.
+defenses:
+  # Número mínimo de 5-gramas de palabras compartidos entre la salida del modelo
+  # y las secciones protegidas del system prompt para que L5 la retenga.
+  # Calibrado contra los 20 benignos del conjunto de control y 15 benignos de
+  # desarrollo: ver notas/calibracion_L5.md para los datos y el criterio.
+  l5_ngram_threshold: 3
+
 # --- Cortesía con la API ---------------------------------------------------
 rate_limit:
-  min_seconds_between_calls: 2.5
+  # 12 s. Cálculo desde los encabezados de una respuesta real de gpt-oss-120b
+  # (2026-09-18): x-ratelimit-limit-tokens 8000 con reset de 6,585 s para 878
+  # tokens consumidos => 8000 tokens/minuto; x-ratelimit-limit-requests 1000 con
+  # reset de 14m24s para 10 peticiones => 1000 peticiones/día.
+  # El cupo que manda es el de tokens. Una interacción de la condición B gasta
+  # ~1130 de contexto y hasta 1500 de salida. Con un gasto medio de ~1200 tokens,
+  # 8000/1200 = 6,7 llamadas/minuto, es decir una cada 9 s; 12 s deja margen.
+  # Con 2,5 s (el valor inicial) serían 24 llamadas/minuto y el cupo saltaría a
+  # los pocos minutos. El 429 por tokens SÍ es transitorio —el cupo se repone—,
+  # así que el backoff absorbe los desbordes ocasionales; 12 s busca que sean raros.
+  min_seconds_between_calls: 12
   max_retries: 6
   backoff_base_seconds: 2
 

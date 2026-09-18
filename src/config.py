@@ -89,6 +89,18 @@ class ExperimentParams:
 
 
 @dataclass(frozen=True, slots=True)
+class DefenseParams:
+    """Umbrales de las capas de defensa de la condición B.
+
+    A diferencia de :class:`InferenceParams`, estos valores SÍ se calibran, pero
+    únicamente contra prompts benignos: ajustarlos mirando los ataques
+    convertiría el ASR en una medida del ajuste y no de la resistencia.
+    """
+
+    l5_ngram_threshold: int
+
+
+@dataclass(frozen=True, slots=True)
 class RateLimitParams:
     """Política de cortesía y reintentos frente a la API del proveedor."""
 
@@ -130,6 +142,7 @@ class Config:
     inference: InferenceParams
     experiment: ExperimentParams
     rate_limit: RateLimitParams
+    defenses: DefenseParams
     paths: Paths
     # repr=False para que la clave no aparezca en logs ni en trazas de error.
     api_key: str = field(repr=False)
@@ -217,6 +230,7 @@ def load_config(
     inference_raw = _section(raw, "inference")
     experiment_raw = _section(raw, "experiment")
     rate_limit_raw = _section(raw, "rate_limit")
+    defenses_raw = _section(raw, "defenses")
     paths_raw = _section(raw, "paths")
 
     try:
@@ -260,6 +274,11 @@ def load_config(
                 _require(rate_limit_raw, "backoff_base_seconds", "rate_limit")
             ),
         )
+        defenses = DefenseParams(
+            l5_ngram_threshold=int(
+                _require(defenses_raw, "l5_ngram_threshold", "defenses")
+            ),
+        )
     except (TypeError, ValueError) as exc:
         raise ConfigError(f"Valor numérico inválido en experiment.yaml: {exc}") from exc
 
@@ -292,6 +311,7 @@ def load_config(
         inference=inference,
         experiment=experiment,
         rate_limit=rate_limit,
+        defenses=defenses,
         paths=paths,
         api_key=api_key,
         project_root=root,
