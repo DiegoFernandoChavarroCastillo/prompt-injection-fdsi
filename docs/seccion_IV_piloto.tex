@@ -109,6 +109,17 @@ recordatorio reinyectado. Los tokens de salida son equivalentes (124 frente a
 \textit{system prompt} en ambas condiciones. La latencia de la llamada al modelo
 crece de 879 a 978 milisegundos de media, coherente con el contexto más largo.
 
+El sobrecosto de latencia del piloto se reporta únicamente con la latencia de la
+llamada al modelo. La instrumentación empleada en esta corrida incluía, dentro
+del tiempo total por interacción, la pausa de doce segundos que el ejecutor
+mantiene entre llamadas para respetar los límites de uso del proveedor, de modo
+que esa cifra no es interpretable como costo de las capas de defensa. El defecto
+se corrigió con posterioridad al piloto ---la pausa pasó a aplicarse entre
+interacciones y no dentro de ellas---, pero no se reejecutó la corrida: con
+$N=1$ no habría aportado nada que la corrida definitiva no vaya a medir mejor.
+El sobrecosto en \textit{tokens}, que es la magnitud relevante para el costo de
+operación, no se ve afectado por este defecto.
+
 \subsubsection{Dónde actúa cada capa}
 
 Las diez interacciones detenidas en la condición B lo fueron todas en L3, el
