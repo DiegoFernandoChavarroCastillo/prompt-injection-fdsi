@@ -9,6 +9,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}      % necesario para \mathbb
 \usepackage{booktabs}
+\usepackage{longtable}    % anexos: tablas que se parten entre páginas
 \usepackage{array}
 \usepackage{multirow}
 \usepackage{tabularx}
@@ -821,7 +822,10 @@ F. Aguilera and F. Berzal, ``LLM Security: Vulnerabilities, Attacks, Defenses, a
 \appendix
 \renewcommand{\thesection}{\Alph{section}}
 \setcounter{section}{0}
-\section{Conjunto Completo de Ataques Utilizados}
-\section{System Prompts de los Chatbots}
+% Anexos generados desde el repositorio, para que no puedan divergir de lo que
+% se ejecutó. Se regeneran con scripts/export_annex_a.py y export_annex_b.py.
+% Cada archivo trae su propio \section y abre \onecolumn antes del título.
+\input{docs/anexo_A}
+\input{docs/anexo_B}
 
 \end{document}
