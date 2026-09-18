@@ -75,11 +75,13 @@ def test_los_parametros_de_razonamiento_estan_congelados(config):
 
     gpt-oss-120b no admite ``reasoning_effort="none"`` (la API responde 400:
     *must be one of low, medium, high*), así que "low" es el mínimo posible.
-    ``include_reasoning=False`` evita que el razonamiento vuelva en la respuesta;
-    si aun así volviera, el cliente lo guarda aparte y nunca dentro de ``text``.
+    ``include_reasoning=True`` pide el razonamiento para registrarlo: alimenta el
+    análisis cualitativo de la Sección V. El cliente lo guarda en la clave
+    ``reasoning``, nunca dentro de ``text``, y el clasificador lo ignora, porque
+    el usuario del chatbot no llega a verlo.
     """
     assert config.inference.reasoning_effort == "low"
-    assert config.inference.include_reasoning is False
+    assert config.inference.include_reasoning is True
 
 
 def test_reasoning_effort_invalido_da_error_claro(tmp_path, monkeypatch, config):

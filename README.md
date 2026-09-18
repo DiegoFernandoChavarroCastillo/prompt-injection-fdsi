@@ -87,6 +87,19 @@ L5, y esa es la razón por la que el ASR mide la resistencia del filtro y no lo 
 batería se ajustó a él. Si los archivos cambian, `pytest` falla; re-congelar exige
 `--force` y debe documentarse en el artículo.
 
+### Probar un chatbot a mano
+
+```bash
+python scripts/try_chatbot.py --condition A --text "¿Qué cubre el seguro de hogar?"
+python scripts/try_chatbot.py --condition A --id A01     # payload de la batería
+python scripts/try_chatbot.py --condition A --id B16 -v  # benigno difícil, con el contexto
+```
+
+Imprime el payload, la respuesta, el razonamiento interno (rotulado aparte) y la telemetría.
+**No escribe en `logs/`**: lo que se prueba a mano no es dato del experimento, y mezclarlo
+con las corridas contaminaría el corpus del que salen el ASR y el FPR. Los datos los produce
+únicamente `src/runner.py`. Consume cuota: cada ejecución es una llamada real.
+
 ### Anexo A para el artículo
 
 ```bash
@@ -127,7 +140,7 @@ y quedaron fijadas en la Fase 0.
 | `top_p` | `1.0` | Sin truncar la distribución; toda la variabilidad la controla la temperatura |
 | `max_tokens` | `1500` | Es un modelo de razonamiento y los tokens de razonamiento salen de este mismo techo. Con 400 la respuesta llegaba vacía. La longitud visible ya la acota el system prompt a 150 palabras |
 | `reasoning_effort` | `low` | El mínimo posible: la API rechaza `none` (*must be one of low, medium, high*) |
-| `include_reasoning` | `false` | Evita que el razonamiento vuelva en la respuesta. Si aun así volviera, el cliente lo guarda en `reasoning`, nunca en `text` |
+| `include_reasoning` | `true` | El razonamiento se registra para el análisis cualitativo (Sección V). El cliente lo guarda en `reasoning`, **nunca** en `text`, y el clasificador lo ignora: el usuario no lo ve, así que un canary ahí no es fuga |
 | `n_pilot` | `1` | 1 × 40 prompts × 2 condiciones = **80 interacciones** |
 | `n_final` | `5` | 5 × 40 prompts × 2 condiciones = **400 interacciones** |
 | `execution_seed` | `20260917` | Baraja el orden de ejecución para que un efecto de orden no se confunda con el efecto de la condición |
@@ -174,7 +187,8 @@ prompt-injection-fdsi/
 │   ├── smoke_test.py          # una llamada de prueba a la API
 │   ├── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
 │   ├── freeze_battery.py      # congela la batería (preregistro)
-│   └── export_annex_a.py      # genera docs/anexo_A.tex
+│   ├── export_annex_a.py      # genera docs/anexo_A.tex
+│   └── try_chatbot.py         # prueba manual de un chatbot (NO escribe logs)
 ├── docs/anexo_A.tex           # Anexo A generado, para el artículo
 ├── tests/                     # pruebas que no consumen cuota
 ├── logs/pilot/                # datos crudos del piloto (no versionados)
@@ -195,7 +209,7 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | **0 — Decisiones y configuración inicial** | Repo, `.gitignore`, `.env`, configuración congelada, cliente LLM, smoke test | ✅ **Hecha** |
 | **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
 | **2 — Batería de ataques y benignos** | 40 prompts con metadatos, congelados como `v1` y preregistrados (tag `battery-v1`) | ✅ **Hecha** |
-| 3 — Condición A | Chatbot vulnerable (Listing 1) | ⬜ Pendiente |
+| **3 — Condición A** | Chatbot vulnerable (Listing 1): concatenación plana en un solo mensaje `user` | ✅ **Hecha** |
 | 4 — Condición B | Las cinco capas L1–L5, misma firma `respond()` que A (L4 ya está en `system_B.txt`) | ⬜ Pendiente |
 | 5 — Ejecutor y logs | `runner.py`, logs JSONL reprocesables | ⬜ Pendiente |
 | 6 — Clasificador y métricas | Árbol de la Fig. 4 + ASR/FPR/sobrecosto | ⬜ Pendiente |
@@ -210,9 +224,16 @@ Lo que ya funciona: la configuración (`src/config.py`), el cliente de la API
 (`src/battery.py`), los cuatro scripts y sus pruebas. Los system prompts de ambas
 condiciones están escritos y su simetría verificada; la batería de 20 ataques y 20
 benignos está congelada y preregistrada.
+La **condición A** ya está implementada y es utilizable.
+
 Todo lo demás son **stubs** con su contrato documentado en el docstring y
 `raise NotImplementedError`: la firma y el formato de retorno ya están acordados, así que
 las fases siguientes pueden avanzar en paralelo sin chocar entre sí.
+
+Ambas condiciones devuelven el **mismo dict de diez claves** (`response`,
+`raw_model_output`, `blocked_by`, `sent_context`, `tokens_in`, `tokens_out`, `latency_ms`,
+`model_reported`, `truncated`, `reasoning`), para que el runner pueda tratarlas de forma
+intercambiable y las tablas sean comparables.
 
 ---
 

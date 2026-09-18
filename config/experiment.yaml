@@ -41,8 +41,11 @@ inference:
   # reasoning_effort="none".
   reasoning_effort: low
   # Parámetro propio de Groq (el SDK de OpenAI no lo tipa): se envía en
-  # extra_body. Evita que el razonamiento vuelva en la respuesta.
-  include_reasoning: false
+  # extra_body. Se pide el razonamiento para registrarlo: el razonamiento se
+  # registra para análisis cualitativo (Sección V); nunca se muestra al usuario
+  # ni se usa para clasificar. El cliente lo guarda en la clave "reasoning",
+  # separada de "text", y el clasificador lo ignora por regla explícita.
+  include_reasoning: true
 
 # --- Diseño experimental ---------------------------------------------------
 experiment:

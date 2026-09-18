@@ -50,17 +50,33 @@ L1/L2/L4; R2 y R3 para L3 y L5). El system prompt se escribe en la Fase 1.
 
 from __future__ import annotations
 
+from src.config import Config
+from src.llm_client import LLMClient
+from src.prompts import Prompts
 
-def respond(user_input: str) -> dict:
+
+def respond(
+    user_input: str,
+    client: LLMClient | None = None,
+    prompts: Prompts | None = None,
+    config: Config | None = None,
+) -> dict:
     """Responde a ``user_input`` aplicando las 5 capas de defensa (condición B).
 
-    Firma idéntica a :func:`src.chatbot_a.respond`.
+    Firma idéntica a :func:`src.chatbot_a.respond`, opcionales incluidos: el
+    runner reutiliza un mismo ``LLMClient`` durante toda la corrida —para no
+    reiniciar su espaciado de rate limit en cada interacción— y los tests
+    inyectan dobles por ahí.
 
     Args:
         user_input: texto del usuario (ataque o prompt benigno), sin confianza.
+        client: cliente LLM a usar. Por defecto, uno nuevo con la config activa.
+        prompts: prompts ya cargados. Por defecto, los del repositorio.
+        config: configuración a usar. Por defecto, la del repositorio.
 
     Returns:
-        dict con las mismas claves que la condición A:
+        dict con las mismas diez claves que la condición A (ver
+        :func:`src.chatbot_a.respond`, que documenta el contrato completo):
 
         * ``response`` (str): texto entregado al usuario. Si L3 o L5 bloquearon,
           es el mensaje de rechazo, no la salida del modelo.
@@ -73,6 +89,12 @@ def respond(user_input: str) -> dict:
         * ``tokens_in`` (int | None), ``tokens_out`` (int | None): uso de la API;
           ``None`` si L3 bloqueó y no hubo llamada.
         * ``latency_ms`` (float): latencia total, incluida la de las capas.
+        * ``model_reported`` (str | None): modelo que reportó la API; ``None`` si
+          L3 bloqueó y no hubo llamada.
+        * ``truncated`` (bool): si la respuesta se cortó por ``max_tokens``.
+        * ``reasoning`` (str | None): razonamiento interno del modelo. Se registra
+          para el análisis cualitativo, pero NO se muestra al usuario ni se usa
+          para clasificar: el usuario no lo ve, así que no puede ser una fuga.
 
     Raises:
         NotImplementedError: stub de la Fase 0.

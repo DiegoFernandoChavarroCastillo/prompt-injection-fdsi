@@ -230,11 +230,29 @@ def test_el_razonamiento_se_guarda_aparte_y_nunca_en_el_texto(config, en_model_e
 
 
 def test_se_avisa_si_llega_razonamiento_pese_a_pedir_que_se_oculte(config, caplog):
-    """Si ``include_reasoning=False`` no surtió efecto, debe quedar en el log."""
+    """Si ``include_reasoning=False`` no surtió efecto, debe quedar en el log.
+
+    La configuración del experimento pide ``true`` (el razonamiento se registra
+    para el análisis cualitativo), así que aquí se fuerza ``False`` para probar
+    el aviso: si algún día se decide ocultarlo y el proveedor lo ignorase, no
+    debe pasar desapercibido.
+    """
+    oculto = replace(config, inference=replace(config.inference, include_reasoning=False))
     fake = FakeClient(respuesta=_respuesta(reasoning="Pensando..."))
     with caplog.at_level(logging.WARNING, logger="src.llm_client"):
-        LLMClient(config, client=fake).chat(MENSAJES)
+        LLMClient(oculto, client=fake).chat(MENSAJES)
     assert any("include_reasoning" in registro.message for registro in caplog.records)
+
+
+def test_no_se_avisa_cuando_el_razonamiento_se_pidio_a_proposito(config, caplog):
+    """Con ``include_reasoning=True`` recibirlo es lo esperado: sin warning."""
+    assert config.inference.include_reasoning is True
+    fake = FakeClient(respuesta=_respuesta(reasoning="Pensando..."))
+    with caplog.at_level(logging.WARNING, logger="src.llm_client"):
+        resultado = LLMClient(config, client=fake).chat(MENSAJES)
+
+    assert resultado["reasoning"] == "Pensando..."
+    assert not any("include_reasoning" in registro.message for registro in caplog.records)
 
 
 # -- Reintentos y errores ----------------------------------------------------
