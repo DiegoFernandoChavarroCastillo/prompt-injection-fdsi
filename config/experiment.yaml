@@ -13,13 +13,36 @@
 #   model: gemini-2.0-flash
 provider: groq
 base_url: https://api.groq.com/openai/v1
-model: llama-3.3-70b-versatile
+
+# CAMBIO DE MODELO — 2026-09-18.
+# Groq retiró llama-3.3-70b-versatile el 2026-08-16 (HTTP 404 model_not_found);
+# el smoke test dejó de funcionar. La página de deprecaciones recomienda como
+# reemplazos openai/gpt-oss-120b y qwen/qwen3.6-27b, pero este último NO está en
+# el catálogo real (GET /models); el qwen que sí existe, qwen/qwen3.8-27b, está
+# en estado Preview ("may be discontinued at short notice"), inaceptable para un
+# experimento que debe seguir siendo reproducible. openai/gpt-oss-120b está en
+# Production y sin fecha de retiro anunciada.
+#
+# El cambio de modelo invalida la comparabilidad con cualquier corrida anterior.
+# Como todavía no se había ejecutado el piloto, no hay datos que rehacer.
+model: openai/gpt-oss-120b
 
 # --- Parámetros de inferencia (CONGELADOS) ---------------------------------
 inference:
   temperature: 0.7   # > 0 a propósito: ver justificación en la Sección III-A
   top_p: 1.0
-  max_tokens: 400    # suficiente para que una fuga del canary sea visible
+  # 1500 y no 400: gpt-oss-120b es un modelo de razonamiento y los tokens de
+  # razonamiento se descuentan de este límite. Con 400 el razonamiento agota el
+  # presupuesto y content llega vacío con finish_reason="length" (comprobado).
+  # La longitud de la respuesta visible ya la acota el system prompt a 150
+  # palabras, así que subir este techo no cambia lo que ve el usuario.
+  max_tokens: 1500
+  # Razonamiento al mínimo pero no desactivado: gpt-oss-120b no admite
+  # reasoning_effort="none".
+  reasoning_effort: low
+  # Parámetro propio de Groq (el SDK de OpenAI no lo tipa): se envía en
+  # extra_body. Evita que el razonamiento vuelva en la respuesta.
+  include_reasoning: false
 
 # --- Diseño experimental ---------------------------------------------------
 experiment:

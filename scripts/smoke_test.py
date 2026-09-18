@@ -51,9 +51,16 @@ def main() -> int:
         print(f"[ERROR] Configuración inválida: {exc}", file=sys.stderr)
         return 2
 
+    inference = config.inference
     print(f"Proveedor : {config.provider}")
     print(f"Endpoint  : {config.base_url}")
     print(f"Modelo    : {config.model} (según config)")
+    print(
+        f"Inferencia: temperature={inference.temperature} top_p={inference.top_p} "
+        f"max_tokens={inference.max_tokens} "
+        f"reasoning_effort={inference.reasoning_effort} "
+        f"include_reasoning={inference.include_reasoning}"
+    )
     print("-" * 60)
 
     try:
@@ -62,13 +69,36 @@ def main() -> int:
         print(f"[ERROR] La llamada al modelo falló: {exc}", file=sys.stderr)
         return 1
 
+    razonamiento = result["reasoning"]
     print(f"Texto          : {result['text']}")
     print(f"model_reported : {result['model_reported']}   <-- este va en la Tabla 6")
     print(f"tokens_in      : {result['tokens_in']}")
     print(f"tokens_out     : {result['tokens_out']}")
     print(f"latency_ms     : {result['latency_ms']:.0f}")
     print(f"finish_reason  : {result['finish_reason']}")
+    print(f"truncated      : {result['truncated']}")
+    print(
+        "reasoning      : "
+        + (f"{len(razonamiento)} caracteres (fuera de 'text')" if razonamiento else "None")
+    )
     print("-" * 60)
+
+    # Comprobaciones: el smoke test debe fallar si la respuesta no es utilizable.
+    problemas = []
+    if not result["text"].strip():
+        problemas.append("la respuesta vino vacía")
+    if result["truncated"]:
+        problemas.append(
+            f"la respuesta quedó truncada (max_tokens={config.inference.max_tokens}); "
+            "en un modelo de razonamiento el presupuesto lo consume también el razonamiento"
+        )
+    if razonamiento and razonamiento in result["text"]:
+        problemas.append("el razonamiento se filtró dentro del texto de la respuesta")
+    if problemas:
+        for problema in problemas:
+            print(f"[ERROR] {problema}", file=sys.stderr)
+        return 1
+
     print("OK: la Fase 0 está operativa.")
     return 0
 

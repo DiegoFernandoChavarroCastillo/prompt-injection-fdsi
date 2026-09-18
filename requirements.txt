@@ -11,3 +11,5 @@ openai==3.15.0          # SDK usado contra el endpoint compatible de Groq/Gemini
 python-dotenv==1.2.3    # carga de .env; la API key nunca va en el código
 PyYAML==6.0.3           # lectura de config/experiment.yaml
 pytest==9.1.1           # suite de pruebas
+httpx2==2.13.0          # llega con openai; tests/test_llm_client.py lo importa
+                        # directamente para fabricar respuestas HTTP 429 y 401

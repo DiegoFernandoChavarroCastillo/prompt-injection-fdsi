@@ -50,13 +50,33 @@ class ConfigError(RuntimeError):
     """
 
 
+#: Valores admitidos para ``reasoning_effort``. ``None`` = no enviar el parámetro
+#: (modelos sin razonamiento). Groq rechaza "none" en gpt-oss-120b: sólo acepta
+#: low, medium y high.
+REASONING_EFFORTS: frozenset[str] = frozenset({"none", "default", "low", "medium", "high"})
+
+
 @dataclass(frozen=True, slots=True)
 class InferenceParams:
-    """Parámetros de muestreo del modelo. CONGELADOS para todo el experimento."""
+    """Parámetros de muestreo del modelo. CONGELADOS para todo el experimento.
+
+    Attributes:
+        temperature: > 0 a propósito (Sección III-A).
+        top_p: núcleo de muestreo.
+        max_tokens: techo de tokens generados. En un modelo de razonamiento
+            incluye los tokens de razonamiento, no sólo la respuesta visible.
+        reasoning_effort: esfuerzo de razonamiento, o ``None`` para no enviar el
+            parámetro (modelos que no razonan, como el plan B de Gemini).
+        include_reasoning: si el proveedor debe devolver el razonamiento. Es un
+            parámetro propio de Groq que el SDK de OpenAI no tipa, así que viaja
+            en ``extra_body``. ``None`` = no enviarlo.
+    """
 
     temperature: float
     top_p: float
     max_tokens: int
+    reasoning_effort: str | None = None
+    include_reasoning: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,10 +220,31 @@ def load_config(
     paths_raw = _section(raw, "paths")
 
     try:
+        # reasoning_effort e include_reasoning son opcionales: un proveedor sin
+        # razonamiento (plan B) simplemente los omite del YAML.
+        reasoning_effort = inference_raw.get("reasoning_effort")
+        if reasoning_effort is not None:
+            reasoning_effort = str(reasoning_effort)
+            if reasoning_effort not in REASONING_EFFORTS:
+                raise ConfigError(
+                    f"reasoning_effort='{reasoning_effort}' no es válido. "
+                    f"Valores admitidos: {sorted(REASONING_EFFORTS)}. "
+                    "Omite la clave para no enviar el parámetro."
+                )
+        include_reasoning = inference_raw.get("include_reasoning")
+        if include_reasoning is not None:
+            if not isinstance(include_reasoning, bool):
+                raise ConfigError(
+                    "include_reasoning debe ser true o false en experiment.yaml "
+                    f"(se leyó {include_reasoning!r})."
+                )
+
         inference = InferenceParams(
             temperature=float(_require(inference_raw, "temperature", "inference")),
             top_p=float(_require(inference_raw, "top_p", "inference")),
             max_tokens=int(_require(inference_raw, "max_tokens", "inference")),
+            reasoning_effort=reasoning_effort,
+            include_reasoning=include_reasoning,
         )
         experiment = ExperimentParams(
             n_pilot=int(_require(experiment_raw, "n_pilot", "experiment")),

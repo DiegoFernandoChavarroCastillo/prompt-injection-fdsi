@@ -8,8 +8,10 @@ cada módulo hablara con la API por su cuenta, cualquier diferencia accidental d
 
 Responsabilidades:
 
-* Aplicar SIEMPRE los parámetros de ``config/experiment.yaml``. No se pueden
-  sobreescribir por llamada: son variables controladas, no opciones.
+* Aplicar SIEMPRE los parámetros de ``config/experiment.yaml`` —incluidos
+  ``reasoning_effort`` e ``include_reasoning``, que viajan en ``extra_body``
+  cuando el SDK no los tipa—. No se pueden sobreescribir por llamada: son
+  variables controladas, no opciones.
 * Espaciar las llamadas (``min_seconds_between_calls``) para no gatillar el
   rate limit del proveedor.
 * Reintentar con backoff exponencial ante 429, errores 5xx y fallos de red.
@@ -48,6 +50,10 @@ RETRYABLE_STATUS_CODES = frozenset({408, 409, 429, 500, 502, 503, 504})
 #: Tope de espera por reintento, para que el backoff no se dispare sin control.
 MAX_BACKOFF_SECONDS = 60.0
 
+#: Nombres bajo los que un proveedor puede devolver el razonamiento del modelo.
+#: Groq usa "reasoning"; otros endpoints compatibles usan "reasoning_content".
+REASONING_FIELDS = ("reasoning", "reasoning_content")
+
 
 class LLMCallError(RuntimeError):
     """La llamada a la API no se pudo completar.
@@ -71,6 +77,19 @@ class LLMClient:
             api_key=self.config.api_key,
             base_url=self.config.base_url,
         )
+        # Parámetros extra del modelo, resueltos una sola vez: son variables
+        # controladas y no cambian entre llamadas.
+        inference = self.config.inference
+        self._extra_params: dict[str, Any] = {}
+        if inference.reasoning_effort is not None:
+            self._extra_params["reasoning_effort"] = inference.reasoning_effort
+        if inference.include_reasoning is not None:
+            # El SDK de OpenAI no tipa include_reasoning (es propio de Groq):
+            # va en extra_body, que el SDK envía tal cual en el cuerpo JSON.
+            self._extra_params["extra_body"] = {
+                "include_reasoning": inference.include_reasoning
+            }
+
         # Instante (monotónico) en que terminó la última llamada; None = ninguna aún.
         self._last_call_at: float | None = None
         # Generador propio: no tocamos el estado del `random` global, que el
@@ -102,6 +121,14 @@ class LLMClient:
             * ``latency_ms`` (float): duración de la llamada exitosa, en milisegundos.
               No incluye esperas de rate limit ni intentos fallidos.
             * ``finish_reason`` (str | None): ``"stop"``, ``"length"``, etc.
+            * ``truncated`` (bool): ``True`` si ``finish_reason == "length"``. Una
+              respuesta truncada no puede analizarse como si estuviera completa:
+              una fuga podría haberse quedado a medio escribir. El clasificador
+              debe tratarla aparte, no como ataque fallido.
+            * ``reasoning`` (str | None): razonamiento interno del modelo, si el
+              proveedor lo devolvió. Nunca se mezcla con ``text``: el usuario del
+              chatbot no lo ve, así que no cuenta como fuga; pero se registra
+              porque ayuda a explicar por qué una inyección funcionó o no.
 
         Raises:
             LLMCallError: si se agotaron los reintentos, o ante un error no
@@ -123,6 +150,7 @@ class LLMClient:
                     temperature=self.config.inference.temperature,
                     top_p=self.config.inference.top_p,
                     max_tokens=self.config.inference.max_tokens,
+                    **self._extra_params,
                 )
                 latency_ms = (time.perf_counter() - started) * 1000.0
             except (RateLimitError, APITimeoutError, APIConnectionError) as exc:
@@ -215,6 +243,25 @@ class LLMClient:
         except (TypeError, ValueError):
             return None
 
+    @staticmethod
+    def _extract_reasoning(message: Any) -> str | None:
+        """Devuelve el razonamiento del modelo si el proveedor lo envió.
+
+        Se busca tanto en los atributos tipados como en ``model_extra``, donde el
+        SDK deja los campos que no conoce. Devuelve ``None`` si no hay ninguno o
+        si viene vacío.
+        """
+        for campo in REASONING_FIELDS:
+            valor = getattr(message, campo, None)
+            if isinstance(valor, str) and valor.strip():
+                return valor
+        extra = getattr(message, "model_extra", None) or {}
+        for campo in REASONING_FIELDS:
+            valor = extra.get(campo)
+            if isinstance(valor, str) and valor.strip():
+                return valor
+        return None
+
     def _to_result(self, response: Any, latency_ms: float) -> dict:
         """Normaliza la respuesta del SDK al dict que consume todo el proyecto."""
         choices = getattr(response, "choices", None) or []
@@ -222,10 +269,35 @@ class LLMClient:
             raise LLMCallError("La API devolvió una respuesta sin 'choices'.")
 
         choice = choices[0]
-        text = getattr(choice.message, "content", None) or ""
+        message = getattr(choice, "message", None)
+        text = getattr(message, "content", None) or ""
+        finish_reason = getattr(choice, "finish_reason", None)
         usage = getattr(response, "usage", None)
         if usage is None:
             logger.warning("La API no reportó 'usage'; tokens_in/tokens_out serán None.")
+
+        # El razonamiento NUNCA se mezcla con el texto: el usuario del chatbot no
+        # lo ve, así que no puede contar como fuga. Pero se registra aparte,
+        # porque puede explicar por qué una inyección funcionó o no.
+        reasoning = self._extract_reasoning(message)
+        if reasoning is not None and self.config.inference.include_reasoning is False:
+            logger.warning(
+                "El modelo devolvió razonamiento pese a include_reasoning=false "
+                "(%d caracteres). Se registra aparte, fuera de 'text'.",
+                len(reasoning),
+            )
+
+        # Una respuesta truncada no puede analizarse como si estuviera completa:
+        # una fuga podría haberse quedado a medio escribir.
+        truncated = finish_reason == "length"
+        if truncated:
+            logger.warning(
+                "Respuesta TRUNCADA (finish_reason='length') con max_tokens=%d. "
+                "En un modelo de razonamiento el presupuesto lo consumen también "
+                "los tokens de razonamiento. Texto devuelto: %d caracteres.",
+                self.config.inference.max_tokens,
+                len(text),
+            )
 
         result = {
             "text": text,
@@ -233,14 +305,18 @@ class LLMClient:
             "tokens_in": getattr(usage, "prompt_tokens", None) if usage else None,
             "tokens_out": getattr(usage, "completion_tokens", None) if usage else None,
             "latency_ms": latency_ms,
-            "finish_reason": getattr(choice, "finish_reason", None),
+            "finish_reason": finish_reason,
+            "truncated": truncated,
+            "reasoning": reasoning,
         }
         logger.info(
-            "Llamada OK: modelo=%s tokens_in=%s tokens_out=%s latencia=%.0f ms finish=%s",
+            "Llamada OK: modelo=%s tokens_in=%s tokens_out=%s latencia=%.0f ms "
+            "finish=%s truncada=%s",
             result["model_reported"],
             result["tokens_in"],
             result["tokens_out"],
             latency_ms,
-            result["finish_reason"],
+            finish_reason,
+            truncated,
         )
         return result

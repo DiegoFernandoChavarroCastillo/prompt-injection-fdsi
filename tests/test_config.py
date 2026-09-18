@@ -50,10 +50,52 @@ def test_temperatura_mayor_que_cero(config):
 
 
 def test_parametros_de_inferencia_congelados(config):
-    """Los valores acordados en la Fase 0 no deben cambiar sin acuerdo del equipo."""
+    """Los valores acordados no deben cambiar sin acuerdo del equipo.
+
+    ``max_tokens`` subió de 400 a 1500 en la migración a ``openai/gpt-oss-120b``
+    (2026-09-18): es un modelo de razonamiento y los tokens de razonamiento se
+    descuentan de ese mismo techo, así que con 400 la respuesta llegaba vacía.
+    """
     assert config.inference.temperature == 0.7
     assert config.inference.top_p == 1.0
-    assert config.inference.max_tokens == 400
+    assert config.inference.max_tokens == 1500
+
+
+def test_el_modelo_retirado_ya_no_esta_configurado(config):
+    """llama-3.3-70b-versatile fue retirado por Groq el 2026-08-16.
+
+    Devuelve HTTP 404 model_not_found: cualquier corrida con él falla entera.
+    """
+    assert config.model != "llama-3.3-70b-versatile"
+    assert config.model == "openai/gpt-oss-120b"
+
+
+def test_los_parametros_de_razonamiento_estan_congelados(config):
+    """Razonamiento al mínimo y oculto en la respuesta.
+
+    gpt-oss-120b no admite ``reasoning_effort="none"`` (la API responde 400:
+    *must be one of low, medium, high*), así que "low" es el mínimo posible.
+    ``include_reasoning=False`` evita que el razonamiento vuelva en la respuesta;
+    si aun así volviera, el cliente lo guarda aparte y nunca dentro de ``text``.
+    """
+    assert config.inference.reasoning_effort == "low"
+    assert config.inference.include_reasoning is False
+
+
+def test_reasoning_effort_invalido_da_error_claro(tmp_path, monkeypatch, config):
+    """Un valor no admitido debe detectarse al cargar, no en mitad del piloto."""
+    import yaml
+
+    from src.config import ConfigError
+
+    crudo = yaml.safe_load(config.config_path.read_text(encoding="utf-8"))
+    crudo["inference"]["reasoning_effort"] = "maximo"
+    alterado = tmp_path / "experiment.yaml"
+    alterado.parent.mkdir(parents=True, exist_ok=True)
+    alterado.write_text(yaml.safe_dump(crudo, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="reasoning_effort"):
+        load_config(config_path=alterado, require_api_key=False)
 
 
 def test_el_canary_tiene_el_formato_acordado(config):
