@@ -369,7 +369,7 @@ del sistema donde una decisión no depende del comportamiento del LLM.
 \begin{itemize}
     \item \textbf{L1 --- Delimitación estructural.} La entrada del usuario
     se encapsula entre delimitadores explícitos y de alta entropía
-    (\texttt{<<<USER\_DATA\_a91f>>> ... <<</USER\_DATA\_a91f>>>}) y se
+    (\texttt{\textless\textless\textless USER\_DATA\_a91f\textgreater\textgreater\textgreater{} ... \textless\textless\textless/USER\_DATA\_a91f\textgreater\textgreater\textgreater}) y se
     envía en un rol de mensaje distinto al del sistema. El
     \textit{system prompt} declara explícitamente que todo lo contenido
     entre delimitadores es dato a procesar y nunca instrucción a obedecer,
@@ -435,8 +435,8 @@ del sistema donde una decisión no depende del comportamiento del LLM.
 \node[seg, fill=white, below=0pt of l2a] (l4)
   {\textbf{L4} Restricción anti-\textit{leaking} + \textit{few-shot} de rechazo};
 \node[seg, fill=black!12, below=0pt of l4] (l1)
-  {\textbf{L1} \texttt{<<<USER\_DATA>>>}\\ entrada del usuario delimitada
-   \\\texttt{<</USER\_DATA>>>}};
+  {\textbf{L1} \texttt{\textless\textless\textless USER\_DATA\textgreater\textgreater\textgreater}\\ entrada del usuario delimitada
+   \\\texttt{\textless\textless/USER\_DATA\textgreater\textgreater\textgreater}};
 \node[seg, fill=white, below=0pt of l1] (l2b)
   {\textbf{L2} Instrucción reforzada (post)};
 

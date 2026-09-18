@@ -44,7 +44,12 @@ LITERATE = (
     r"{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 "
     r"{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 "
     r'{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1 '
-    r"{¿}{{?`}}1 {¡}{{!`}}1 {«}{{<<}}2 {»}{{>>}}2 {—}{{---}}3 {…}{{...}}3"
+    # Ojo: « y » NO pueden mapearse a "<<" y ">>". babel con la opción spanish
+    # convierte esas dos secuencias en guillemets, así que el reemplazo se
+    # reexpandiría. Se usan las macros de LaTeX, que son inertes.
+    r"{¿}{{\textquestiondown}}1 {¡}{{\textexclamdown}}1 "
+    r"{«}{{\guillemotleft}}1 {»}{{\guillemotright}}1 "
+    r"{—}{{\textemdash}}1 {…}{{\textellipsis}}1"
 )
 
 CABECERA = r"""% docs/anexo_B.tex — Anexo B: system prompts de las dos condiciones.
