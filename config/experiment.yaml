@@ -38,3 +38,12 @@ paths:
   canary: prompts/canary.txt
   attacks: data/attacks_v1.json
   benign: data/benign_v1.json
+  # Prompts de sistema. system_B debe empezar exactamente con el contenido de
+  # system_A (simetría experimental: B = A + bloques de defensa); lo verifica
+  # tests/test_prompts.py.
+  system_A: prompts/system_A.txt
+  system_B: prompts/system_B.txt
+  # Recordatorio L2 que la condición B reinyecta después de la entrada del usuario.
+  l2_reminder: prompts/l2_reminder.txt
+  # Mensajes deterministas de rechazo de L3 y L5 (idénticos entre sí a propósito).
+  messages: prompts/messages.yaml

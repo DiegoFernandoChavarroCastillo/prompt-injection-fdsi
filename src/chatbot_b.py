@@ -1,27 +1,37 @@
 """Condición B — chatbot PROTEGIDO con defensa en 5 capas (Fase 4).
 
-Orden de ejecución de las capas, de entrada a salida::
+Orden de ejecución de las capas, de entrada a salida (ver PlanDeAccion.md,
+Fase 4)::
 
-    L3 (filtro de entrada)
-      -> construcción del contexto: L1 (separación de roles)
-                                    L2 (instrucciones defensivas)
-                                    L4 (delimitadores del input no confiable)
+    entrada
+      -> L3 (filtro de entrada)  -> [bloqueo -> mensaje neutro]
+      -> contexto: system_B (incluye L4) + L1 (roles y delimitadores)
+                   + L2 (recordatorio posterior)
       -> LLM
-      -> L5 (validación de salida)
+      -> L5 (validación de salida)  -> [falla -> fallback]
+      -> respuesta
 
 Qué hace cada capa:
 
-* **L1 — Separación de roles.** El prompt del sistema viaja en un mensaje
-  ``role="system"`` propio y la entrada del usuario en un ``role="user"``
-  separado. Es la diferencia estructural frente a la condición A.
-* **L2 — Instrucciones defensivas.** El system prompt declara la precedencia del
-  operador y prohíbe revelar el contexto o el canary.
+* **L1 — Delimitación estructural.** ``system_B`` viaja en un mensaje
+  ``role="system"`` propio y la entrada del cliente en un ``role="user"``,
+  envuelta en ``<<<USER_DATA_a91f>>> … <<</USER_DATA_a91f>>>``. Si la entrada
+  trae el propio delimitador hay que escaparlo antes de envolverla, o el
+  atacante podría cerrar el bloque de datos. La declaración de que ese bloque
+  es dato y no instrucción está en la sección ``[SEGURIDAD — ENTRADA DEL
+  USUARIO]`` de ``prompts/system_B.txt``.
+* **L2 — Sándwich.** ``prompts/l2_reminder.txt`` se reinyecta DESPUÉS del bloque
+  delimitado, para que la última instrucción del contexto sea del operador y no
+  del atacante. Documentar si va dentro del mismo mensaje ``user`` o como
+  mensaje aparte.
 * **L3 — Filtro de entrada.** Bloquea antes de gastar una llamada a la API;
   ver :mod:`src.defenses.l3_input_filter`.
-* **L4 — Delimitadores.** La entrada del usuario se encierra en marcadores
-  explícitos y se rotula como dato no confiable, no como instrucción.
-* **L5 — Validación de salida.** Última red: si el canary aparece en la salida,
-  la respuesta no llega al usuario; ver :mod:`src.defenses.l5_output_validator`.
+* **L4 — Anti-leaking.** Ya está en ``prompts/system_B.txt`` (Fase 1): las
+  secciones ``[SEGURIDAD — CONFIDENCIALIDAD]`` y ``[EJEMPLOS DE RESPUESTA]``.
+  Aquí solo hay que verificar que se esté enviando.
+* **L5 — Validación de salida.** Última red: canary, solapamiento de 5-gramas
+  contra :data:`src.prompts.PROTECTED_SECTIONS` y marcadores de rol o de
+  compromiso comercial; ver :mod:`src.defenses.l5_output_validator`.
 
 Las capas deben ser genéricas, no ajustadas a la batería concreta de ataques:
 un filtro escrito "a la medida" de ``attacks_v1.json`` inflaría artificialmente

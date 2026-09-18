@@ -3,8 +3,8 @@
 Laboratorio de inyección directa de instrucciones en LLMs (OWASP LLM01) para la materia
 **Fundamentos de Seguridad de la Información**. Compara dos asistentes que resuelven la
 **misma** tarea: la **condición A** (baseline vulnerable, sin defensas) y la **condición B**
-(protegida con 5 capas: L1 separación de roles, L2 instrucciones defensivas, L3 filtro de
-entrada, L4 delimitadores, L5 validación de salida). Ambas se enfrentan a **20 ataques** en
+(protegida con 5 capas: L1 delimitación estructural, L2 recordatorio en sándwich, L3 filtro
+de entrada, L4 anti-leaking, L5 validación de salida). Ambas se enfrentan a **20 ataques** en
 5 categorías y **20 prompts benignos** (15 ordinarios + 5 difíciles), y se reportan **ASR**
 (tasa de éxito de los ataques), **FPR** (benignos rechazados de más) y el sobrecosto en
 tokens y latencia.
@@ -75,6 +75,17 @@ del modelo que va en la Tabla 6 del artículo**, no el alias del YAML.
 pytest
 ```
 
+### Informe de prompts (evidencia de simetría para el Anexo B)
+
+```bash
+python scripts/prompt_report.py
+```
+
+Imprime el tamaño aproximado de cada prompt y el diff unificado `system_A` → `system_B`.
+El diff debe ser **solo adiciones**: si mostrara alguna línea eliminada o modificada, la
+simetría entre condiciones estaría rota y la diferencia de ASR ya no sería atribuible a
+las capas de defensa. Devuelve código ≠ 0 en ese caso.
+
 Los tests de L3 y L5 están marcados como `skip` hasta la Fase 4; se activan quitando el
 marcador `@pytest.mark.skip`.
 
@@ -112,10 +123,11 @@ y quedaron fijadas en la Fase 0.
 ```
 prompt-injection-fdsi/
 ├── config/experiment.yaml     # variables controladas del experimento
-├── prompts/                   # system prompts de A y B + canary
+├── prompts/                   # system prompts de A y B, canary, recordatorio L2, mensajes
 ├── data/                      # batería: 20 ataques + 20 benignos (Anexo A)
 ├── src/
 │   ├── config.py              # carga y valida la configuración (inmutable)
+│   ├── prompts.py             # carga los prompts y acota el cotejo de L5
 │   ├── llm_client.py          # ÚNICA puerta hacia la API
 │   ├── chatbot_a.py           # condición A (vulnerable)
 │   ├── chatbot_b.py           # condición B (5 capas)
@@ -123,7 +135,9 @@ prompt-injection-fdsi/
 │   ├── runner.py              # ejecuta la batería y escribe logs JSONL
 │   ├── classifier.py          # etiqueta las interacciones (Fig. 4)
 │   └── metrics.py             # ASR, FPR y sobrecosto
-├── scripts/smoke_test.py      # una llamada de prueba a la API
+├── scripts/
+│   ├── smoke_test.py          # una llamada de prueba a la API
+│   └── prompt_report.py       # tamaños y diff A vs. B (evidencia de simetría)
 ├── tests/                     # pruebas que no consumen cuota
 ├── logs/pilot/                # datos crudos del piloto (no versionados)
 └── results/pilot/             # tablas derivadas (no versionadas)
@@ -141,10 +155,10 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 | Fase | Qué incluye | Estado |
 |---|---|---|
 | **0 — Decisiones y configuración inicial** | Repo, `.gitignore`, `.env`, configuración congelada, cliente LLM, smoke test | ✅ **Hecha** |
-| 1 — Caso de uso y system prompts | `system_A.txt` y `system_B.txt` (políticas P1–P5) | ⬜ Pendiente |
+| **1 — Caso de uso y system prompts** | `system_A.txt`, `system_B.txt`, recordatorio L2 y mensajes de rechazo; simetría verificada | ✅ **Hecha** |
 | 2 — Batería de ataques y benignos | 40 prompts con metadatos, congelados como `v1` (Anexo A) | ⬜ Pendiente |
 | 3 — Condición A | Chatbot vulnerable (Listing 1) | ⬜ Pendiente |
-| 4 — Condición B | Las cinco capas L1–L5, misma firma `respond()` que A | ⬜ Pendiente |
+| 4 — Condición B | Las cinco capas L1–L5, misma firma `respond()` que A (L4 ya está en `system_B.txt`) | ⬜ Pendiente |
 | 5 — Ejecutor y logs | `runner.py`, logs JSONL reprocesables | ⬜ Pendiente |
 | 6 — Clasificador y métricas | Árbol de la Fig. 4 + ASR/FPR/sobrecosto | ⬜ Pendiente |
 | 7 — Corrida piloto (N=1) | 80 interacciones, revisión manual de casos ambiguos, tag `pilot-freeze` | ⬜ Pendiente |
@@ -154,10 +168,11 @@ El plan completo, con criterios de cierre y riesgos, está en [`PlanDeAccion.md`
 ### Qué hay hoy en el repositorio
 
 Lo que ya funciona: la configuración (`src/config.py`), el cliente de la API
-(`src/llm_client.py`), el smoke test y las pruebas de configuración. Todo lo demás son
-**stubs** con su contrato documentado en el docstring y `raise NotImplementedError`: la
-firma y el formato de retorno ya están acordados, así que las fases siguientes pueden
-avanzar en paralelo sin chocar entre sí.
+(`src/llm_client.py`), la carga de prompts (`src/prompts.py`), los dos scripts y sus
+pruebas. Los system prompts de ambas condiciones están escritos y su simetría verificada.
+Todo lo demás son **stubs** con su contrato documentado en el docstring y
+`raise NotImplementedError`: la firma y el formato de retorno ya están acordados, así que
+las fases siguientes pueden avanzar en paralelo sin chocar entre sí.
 
 ---
 

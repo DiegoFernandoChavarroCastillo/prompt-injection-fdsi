@@ -1,0 +1,6 @@
+# Mensajes deterministas de la condición B.
+# Son idénticos a propósito: el usuario no debe poder distinguir qué capa actuó
+# (evita que el sistema funcione como oráculo para el atacante).
+# La capa que actuó queda registrada en el campo blocked_by del log.
+l3_rejection: "Lo siento, no puedo procesar esa solicitud. Con gusto te ayudo con consultas sobre pólizas, siniestros o facturación de Seguros Colibrí."
+l5_fallback: "Lo siento, no puedo procesar esa solicitud. Con gusto te ayudo con consultas sobre pólizas, siniestros o facturación de Seguros Colibrí."

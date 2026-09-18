@@ -79,11 +79,20 @@ class RateLimitParams:
 
 @dataclass(frozen=True, slots=True)
 class Paths:
-    """Rutas absolutas a los artefactos de datos, resueltas desde la raíz del repo."""
+    """Rutas absolutas a los artefactos del experimento, resueltas desde la raíz.
+
+    Todas las rutas se declaran en ``config/experiment.yaml`` y no se construyen
+    a mano en ningún otro módulo: así un cambio de ubicación se hace en un solo
+    sitio y los tests validan el conjunto completo.
+    """
 
     canary: Path
     attacks: Path
     benign: Path
+    system_A: Path
+    system_B: Path
+    l2_reminder: Path
+    messages: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +225,10 @@ def load_config(
         canary=_resolve(root, _require(paths_raw, "canary", "paths")),
         attacks=_resolve(root, _require(paths_raw, "attacks", "paths")),
         benign=_resolve(root, _require(paths_raw, "benign", "paths")),
+        system_A=_resolve(root, _require(paths_raw, "system_A", "paths")),
+        system_B=_resolve(root, _require(paths_raw, "system_B", "paths")),
+        l2_reminder=_resolve(root, _require(paths_raw, "l2_reminder", "paths")),
+        messages=_resolve(root, _require(paths_raw, "messages", "paths")),
     )
 
     # El .env puede cambiar el endpoint sin tocar el YAML (plan B: Gemini).

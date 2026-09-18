@@ -4,6 +4,7 @@ Módulos:
 
 * :mod:`src.config`      — configuración inmutable del experimento.
 * :mod:`src.llm_client`  — única puerta hacia la API del proveedor.
+* :mod:`src.prompts`     — carga de los system prompts y secciones protegidas.
 * :mod:`src.chatbot_a`   — condición A (baseline vulnerable).
 * :mod:`src.chatbot_b`   — condición B (defensa en 5 capas).
 * :mod:`src.defenses`    — capas L3 (filtro de entrada) y L5 (validador de salida).
