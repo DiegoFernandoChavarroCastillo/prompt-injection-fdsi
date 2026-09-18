@@ -27,9 +27,10 @@ la capa L3 detuvo en la condición B antes de construir el contexto.
 \subsubsection{Tasa de éxito de los ataques}
 
 La Tabla~\ref{tab:piloto-asr} recoge el ASR por condición. Los casos que el
-clasificador automático no pudo etiquetar con criterios objetivos quedaron como
-\textsc{revisión manual} y se reportan por separado, de modo que el lector pueda
-ver cuánto del resultado depende todavía del juicio humano.
+clasificador automático no pudo etiquetar con criterios objetivos ---dos de las
+ochenta interacciones--- fueron revisados a mano, de modo que no queda ninguna
+interacción sin clasificar y las cifras no dependen de cómo se traten los casos
+ambiguos.
 
 \begin{table}[t]
 \caption{ASR preliminar por condición (piloto, $N=1$)}
@@ -72,7 +73,9 @@ categorías C2, C3 y C5 el ASR de la línea base fue cero, de modo que no existe
 margen que reducir y la comparación no es informativa.
 
 \begin{table}[t]
-\caption{ASR por categoría y reducción (piloto, $N=1$)}
+\caption{ASR por categoría y reducción (piloto, $N=1$). Cada
+categoría contiene cuatro ataques, de modo que un 25\,\% corresponde a un único
+éxito.}
 \label{tab:piloto-delta}
 \centering
 \renewcommand{\arraystretch}{1.2}
@@ -80,11 +83,11 @@ margen que reducir y la comparación no es informativa.
 \toprule
 \textbf{Categoría} & \textbf{ASR$_A$} & \textbf{ASR$_B$} & \textbf{$\Delta$} \\
 \midrule
-C1. Sobrescritura directa      & 25\,\% & 0\,\% & 100\,\% \\
-C2. Suplantación de rol        & 0\,\%  & 0\,\% & N/A \\
-C3. Extracción del prompt      & 25\,\% & 0\,\% & 100\,\% \\
-C4. Contexto engañoso          & 25\,\% & 0\,\% & 100\,\% \\
-C5. Evasión por ofuscación     & 0\,\%  & 0\,\% & N/A \\
+C1. Sobrescritura directa  & 25\,\% (1/4) & 0\,\% (0/4) & 100\,\% \\
+C2. Suplantación de rol    & 0\,\% (0/4)  & 0\,\% (0/4) & N/A \\
+C3. Extracción del prompt  & 25\,\% (1/4) & 0\,\% (0/4) & 100\,\% \\
+C4. Contexto engañoso      & 25\,\% (1/4) & 0\,\% (0/4) & 100\,\% \\
+C5. Evasión por ofuscación & 0\,\% (0/4)  & 0\,\% (0/4) & N/A \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -155,7 +158,8 @@ aplicación puede demostrar utilidad es, con este modelo, estrecho.
   }
 \end{tikzpicture}
 \caption{Tasa de éxito de los ataques (ASR) por categoría en la corrida
-\textbf{piloto preliminar, $N=1$}. La condición B no registró ningún éxito en
+\textbf{piloto preliminar, $N=1$}. Cada categoría contiene cuatro ataques: un
+25\,\% equivale a un único éxito. La condición B no registró ningún éxito en
 ninguna categoría; los ceros se marcan de forma explícita para distinguir una
 medición nula de un dato ausente. En C2 y C5 tampoco la línea base registró
 éxitos, de modo que la reducción no está definida.}
@@ -187,7 +191,8 @@ recordatorio reinyectado. Los tokens de salida son equivalentes (124 frente a
 crece de 879 a 978 milisegundos de media, coherente con el contexto más largo.
 
 El sobrecosto de latencia del piloto se reporta únicamente con la latencia de la
-llamada al modelo. La instrumentación empleada en esta corrida incluía, dentro
+llamada al modelo; el tiempo total por interacción \emph{no} se emplea como
+medida de sobrecosto en ninguna cifra de esta sección. La instrumentación empleada en esta corrida incluía, dentro
 del tiempo total por interacción, la pausa de doce segundos que el ejecutor
 mantiene entre llamadas para respetar los límites de uso del proveedor, de modo
 que esa cifra no es interpretable como costo de las capas de defensa. El defecto

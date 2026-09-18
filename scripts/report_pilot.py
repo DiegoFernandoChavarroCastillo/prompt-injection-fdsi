@@ -36,7 +36,127 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.battery import load_attacks  # noqa: E402
 from src.classifier import classify_file  # noqa: E402
 from src.config import load_config  # noqa: E402
-from src.metrics import cargar, compute_metrics, formatear  # noqa: E402
+from src.metrics import cargar, compute_metrics  # noqa: E402
+
+
+
+def _pct(valor) -> str:
+    """Porcentaje, o «N/A» si la proporción no está definida."""
+    return "N/A" if valor is None else f"{valor:.0%}"
+
+
+def _pct_frac(bloque: dict) -> str:
+    """Porcentaje con su fracción: «25 % (1/4)».
+
+    El porcentaje solo se puede interpretar sabiendo sobre cuántos casos se
+    calcula. Con cuatro ataques por categoría, un 25 % es un único éxito, y esa
+    diferencia importa cuando N=1.
+    """
+    if bloque["asr"] is None:
+        return f"N/A (0/{bloque['denominador']})"
+    return f"{bloque['asr']:.0%} ({bloque['exitos']}/{bloque['denominador']})"
+
+
+def _por_condicion(mapa: dict, vacio: str) -> str:
+    """«ninguna» o «A: 1, B: 2», nunca un diccionario de Python en crudo."""
+    con_valor = {k: v for k, v in (mapa or {}).items() if v}
+    if not con_valor:
+        return vacio
+    return ", ".join(f"{k}: {v}" for k, v in sorted(con_valor.items()))
+
+
+def formatear_metricas(m: dict) -> str:
+    """Render en Markdown de las métricas, para ``results/``.
+
+    Vive aquí y no en ``src/metrics.py`` porque ese módulo forma parte del código
+    congelado en ``final-freeze``: la presentación puede mejorarse sin tocar el
+    cálculo.
+    """
+    condiciones, categorias = m["condiciones"], m["categorias"]
+    hay_revisiones = any(m["revisiones"].values())
+
+    lineas = ["## ASR por condición", ""]
+    if hay_revisiones:
+        lineas += [
+            "Los casos que el clasificador no pudo decidir por sí solo se reportan de",
+            "tres formas, para que se vea cuánto del resultado depende del juicio humano",
+            "todavía pendiente.", "",
+        ]
+    else:
+        lineas += [
+            "**No queda ningún caso pendiente de revisión**: los dos que lo estaban se",
+            "revisaron a mano. Por eso los tres modos de cálculo coinciden; se conservan",
+            "en la tabla para dejar constancia de que el resultado no depende de cómo se",
+            "traten los casos ambiguos.", "",
+        ]
+    lineas += [
+        "| Condición | Estricto (excl. revisión) | Mínimo (revisión=fallo) | Máximo (revisión=éxito) |",
+        "|---|---|---|---|",
+    ]
+    for c in condiciones:
+        g = m["asr"][c]["global"]
+        lineas.append(
+            f"| {c} | {_pct_frac(g['estricto'])} | {_pct(g['minimo']['asr'])} "
+            f"| {_pct(g['maximo']['asr'])} |"
+        )
+
+    lineas += ["", "## ASR por categoría (modo estricto) y reducción", "",
+               "| Categoría | " + " | ".join(condiciones) + " | Δ (A→B) |",
+               "|---|" + "---|" * (len(condiciones) + 1)]
+    for cat in categorias:
+        celdas = [_pct_frac(m["asr"][c]["por_categoria"][cat]["estricto"]) for c in condiciones]
+        d = m["delta"].get("por_categoria", {}).get(cat, {}).get("estricto", "N/A")
+        if isinstance(d, str):
+            base = m["asr"]["A"]["por_categoria"][cat]["estricto"]
+            delta = f"N/A (0/{base['denominador']} en A)"
+        else:
+            a = m["asr"]["A"]["por_categoria"][cat]["estricto"]
+            b = m["asr"]["B"]["por_categoria"][cat]["estricto"]
+            delta = f"{d:.0%} ({a['exitos']}/{a['denominador']} → {b['exitos']}/{b['denominador']})"
+        lineas.append(f"| {cat} | " + " | ".join(celdas) + f" | {delta} |")
+    lineas += ["", "Δ es la reducción relativa del ASR de A a B. Donde A no registró ningún",
+               "éxito no hay margen que reducir y la reducción no está definida.", ""]
+
+    lineas += ["## FPR por condición", "",
+               "| Condición | FPR | Rechazados | Revisiones | Total |", "|---|---|---|---|---|"]
+    for c in condiciones:
+        f = m["fpr"][c]
+        lineas.append(
+            f"| {c} | {_pct(f['fpr_estricto'])} | {f['rechazados']} | {f['revisiones']} "
+            f"| {f['total']} |"
+        )
+
+    lineas += ["", "## Sobrecosto", "",
+               "| Condición | tokens in | tokens out | `api_latency_ms` | ~~`latency_ms`~~ | n |",
+               "|---|---|---|---|---|---|"]
+    for c in condiciones:
+        o = m["overhead"][c]
+        num = lambda v: "—" if v is None else f"{v:.0f}"
+        lineas.append(
+            f"| {c} | {num(o['tokens_in_medio'])} | {num(o['tokens_out_medio'])} | "
+            f"**{num(o['api_latency_ms_media'])}** | ~~{num(o['latency_ms_media'])}~~ | {o['n']} |"
+        )
+    lineas += [
+        "",
+        "> ⚠️ **`latency_ms` de este piloto NO es interpretable.** La columna está tachada",
+        "> a propósito. En la corrida del piloto, esa cifra incluía la pausa de 12 s que el",
+        "> ejecutor mantiene entre llamadas para respetar los límites del proveedor, porque",
+        "> el espaciado se aplicaba dentro de la interacción y no entre interacciones. El",
+        "> efecto además es desigual: las interacciones que L3 bloquea no llaman a la API y",
+        "> no esperaban, así que la condición B aparece como más rápida que la A, lo cual es",
+        "> absurdo.",
+        ">",
+        "> **La cifra válida de latencia es `api_latency_ms`**, que mide solo la llamada al",
+        "> modelo. El sobrecosto en tokens no está afectado. El defecto se corrigió después",
+        "> del piloto (ver [`docs/proceso/incidencias.md`](../../docs/proceso/incidencias.md),",
+        "> entrada B-02) y la corrida definitiva medirá bien las dos cifras.",
+        "",
+        f"Revisiones manuales pendientes: {_por_condicion(m['revisiones'], 'ninguna')}",
+        "",
+        f"Errores de API (excluidos de las métricas): {_por_condicion(m['errores'], 'ninguno')}",
+        "",
+    ]
+    return "\n".join(lineas)
 
 
 def _corta(texto: str | None, n: int = 160) -> str:
@@ -118,16 +238,14 @@ def main() -> int:
         "> con una sola repetición por prompt, la variabilidad del modelo "
         "(temperatura 0.7) no está medida.",
         "",
-        "Los `REVISION_MANUAL` se reportan de tres formas, para que se vea cuánto",
-        "depende el resultado del juicio humano todavía pendiente:",
+        "Modos de cálculo: **estricto** excluye del denominador los casos sin decidir;",
+        "**mínimo** los cuenta como fallo del ataque (cota inferior del ASR) y **máximo**",
+        "como éxito (cota superior).",
         "",
-        "- **Estricto**: se excluyen del denominador.",
-        "- **Mínimo**: todos cuentan como fallo del ataque (cota inferior del ASR).",
-        "- **Máximo**: todos cuentan como éxito (cota superior del ASR).",
         "",
     ]
     (salida / "metricas.md").write_text(
-        "\n".join(cabecera) + formatear(metricas), encoding="utf-8"
+        "\n".join(cabecera) + formatear_metricas(metricas), encoding="utf-8"
     )
 
     # ---------------- revision_manual.csv ----------------
