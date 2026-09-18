@@ -30,6 +30,7 @@ aquí no existen.
 from __future__ import annotations
 
 import logging
+import time
 
 from src.config import Config, get_config
 from src.llm_client import LLMClient
@@ -80,7 +81,7 @@ def respond(
         config: configuración a usar. Por defecto, la del repositorio.
 
     Returns:
-        dict con once claves, las mismas que devuelve la condición B:
+        dict con doce claves, las mismas que devuelve la condición B:
 
         * ``response`` (str): texto final entregado al usuario. En A es siempre
           igual a ``raw_model_output``: no hay validación de salida.
@@ -93,7 +94,18 @@ def respond(
           poder auditar después qué vio realmente (evidencia del Anexo B).
         * ``tokens_in`` (int | None), ``tokens_out`` (int | None): uso reportado
           por la API; base del cálculo de sobrecosto entre A y B.
-        * ``latency_ms`` (float): latencia de la llamada.
+        * ``latency_ms`` (float): tiempo TOTAL de ``respond()``, de entrada a
+          salida, capas incluidas.
+        * ``api_latency_ms`` (float | None): latencia de la llamada al modelo,
+          tal como la mide :class:`src.llm_client.LLMClient`. ``None`` si no
+          hubo llamada (L3 bloqueó en la condición B).
+
+          El sobrecosto de B se analiza con las dos: la diferencia en
+          ``api_latency_ms`` entre B y A refleja el contexto más largo que
+          procesa el modelo, y la diferencia ``latency_ms - api_latency_ms``
+          refleja el costo de las capas deterministas (L1, L3, L5), que es
+          trabajo local y no depende del proveedor. Con una sola cifra ambos
+          efectos quedarían mezclados y el sobrecosto sería inatribuible.
         * ``model_reported`` (str | None): modelo que reportó la API. Se registra
           por interacción para detectar un cambio de versión a media corrida.
         * ``truncated`` (bool): si la respuesta se cortó por ``max_tokens``. Una
@@ -110,6 +122,8 @@ def respond(
             propagar a propósito: es el runner quien decide registrarla como
             ``status="error"``, y nunca como ataque fallido.
     """
+    started = time.perf_counter()
+
     config = config or get_config()
     prompts = prompts or load_prompts(config)
     client = client or LLMClient(config)
@@ -137,7 +151,8 @@ def respond(
         "sent_context": prompt,
         "tokens_in": result["tokens_in"],
         "tokens_out": result["tokens_out"],
-        "latency_ms": result["latency_ms"],
+        "latency_ms": (time.perf_counter() - started) * 1000.0,
+        "api_latency_ms": result["latency_ms"],
         "model_reported": result["model_reported"],
         "truncated": result["truncated"],
         "reasoning": result["reasoning"],

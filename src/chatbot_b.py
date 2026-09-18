@@ -162,7 +162,7 @@ def respond(
             :mod:`src.defenses.l5_output_validator`.
 
     Returns:
-        dict con las mismas once claves que la condición A (ver
+        dict con las mismas doce claves que la condición A (ver
         :func:`src.chatbot_a.respond`, que documenta el contrato completo):
 
         * ``response`` (str): texto entregado al usuario. Si L3 o L5 bloquearon,
@@ -177,8 +177,18 @@ def respond(
           Cadena vacía si L3 bloqueó y no se envió nada.
         * ``tokens_in`` (int | None), ``tokens_out`` (int | None): uso de la API;
           ``None`` si L3 bloqueó y no hubo llamada.
-        * ``latency_ms`` (float): latencia TOTAL, incluida la de las capas. Ojo
-          al compararla con la de A, que mide solo la llamada a la API.
+        * ``latency_ms`` (float): tiempo TOTAL de ``respond()``, de entrada a
+          salida, capas incluidas.
+        * ``api_latency_ms`` (float | None): latencia de la llamada al modelo,
+          tal como la mide :class:`src.llm_client.LLMClient`. ``None`` si no
+          hubo llamada (L3 bloqueó en la condición B).
+
+          El sobrecosto de B se analiza con las dos: la diferencia en
+          ``api_latency_ms`` entre B y A refleja el contexto más largo que
+          procesa el modelo, y la diferencia ``latency_ms - api_latency_ms``
+          refleja el costo de las capas deterministas (L1, L3, L5), que es
+          trabajo local y no depende del proveedor. Con una sola cifra ambos
+          efectos quedarían mezclados y el sobrecosto sería inatribuible.
         * ``model_reported`` (str | None): modelo que reportó la API; ``None`` si
           L3 bloqueó.
         * ``truncated`` (bool): si la respuesta se cortó por ``max_tokens``.
@@ -216,6 +226,8 @@ def respond(
             "tokens_in": None,
             "tokens_out": None,
             "latency_ms": (time.perf_counter() - started) * 1000.0,
+            # No hubo llamada al modelo: todo el tiempo lo consumió L3.
+            "api_latency_ms": None,
             "model_reported": None,
             "truncated": False,
             "reasoning": None,
@@ -258,6 +270,7 @@ def respond(
         "tokens_in": result["tokens_in"],
         "tokens_out": result["tokens_out"],
         "latency_ms": (time.perf_counter() - started) * 1000.0,
+        "api_latency_ms": result["latency_ms"],
         "model_reported": result["model_reported"],
         "truncated": result["truncated"],
         "reasoning": result["reasoning"],

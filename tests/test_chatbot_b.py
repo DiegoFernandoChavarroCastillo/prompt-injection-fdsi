@@ -358,6 +358,24 @@ def test_el_dict_tiene_exactamente_las_claves_del_contrato(prompts, config):
     assert set(resultado) == RESPONSE_KEYS
 
 
+def test_la_latencia_separa_el_total_de_la_de_la_api(prompts, config):
+    """Dos cifras distintas: el total de respond() y la llamada al modelo.
+
+    Su diferencia es el costo de las capas deterministas, que es lo que hay que
+    poder atribuir por separado del contexto más largo que procesa el modelo.
+    """
+    resultado, _, _, _ = _responder(prompts, config, "hola")
+    assert resultado["api_latency_ms"] == 1234.5
+    assert resultado["latency_ms"] >= 0
+
+
+def test_sin_llamada_a_la_api_no_hay_latencia_de_api(prompts, config):
+    """Si L3 bloquea, ``api_latency_ms`` es ``None``: no hubo llamada."""
+    resultado, _, _, _ = _responder(prompts, config, "x", l3=FakeL3(blocked=True, rule="r"))
+    assert resultado["api_latency_ms"] is None
+    assert resultado["latency_ms"] >= 0
+
+
 def test_el_contrato_se_respeta_tambien_cuando_l3_bloquea(prompts, config):
     """El esquema del log no puede cambiar según la rama que se tome."""
     resultado, _, _, _ = _responder(prompts, config, "x", l3=FakeL3(blocked=True, rule="r"))

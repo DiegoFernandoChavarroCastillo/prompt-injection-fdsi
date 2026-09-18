@@ -203,7 +203,10 @@ def test_la_telemetria_viene_del_cliente_llm(prompts, config):
 
     assert resultado["tokens_in"] == 512
     assert resultado["tokens_out"] == 48
-    assert resultado["latency_ms"] == 987.6
+    assert resultado["api_latency_ms"] == 987.6
+    # latency_ms mide el total de respond(), no solo la llamada: es mayor o
+    # igual que la de la API, y positiva aunque el doble responda al instante.
+    assert resultado["latency_ms"] >= 0
     assert resultado["model_reported"] == "openai/gpt-oss-120b"
     assert resultado["truncated"] is False
     assert resultado["reasoning"] == "Pensando en seguros."
