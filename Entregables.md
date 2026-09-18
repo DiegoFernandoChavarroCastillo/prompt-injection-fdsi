@@ -120,6 +120,7 @@ volver a generarlo: ver [`docs/verificar_en_overleaf.md`](docs/verificar_en_over
 | `docs/proceso/bitacora_sesion_autonoma.md` | Diario de la sesión de trabajo autónomo |
 | `docs/proceso/instrucciones_sesion_autonoma.md` | El encargo que se le dio a la herramienta, sin retoques |
 | `docs/evidencia/` | Salidas crudas de las verificaciones, con un índice que explica qué demuestra cada una |
+| `docs/revisiones/` | Informes de la revisión cruzada de esta entrega: [reproducibilidad](docs/revisiones/verificacion_reproducibilidad.md) (Laura) y [cifras del artículo](docs/revisiones/revision_articulo_vs_datos.md) (David) |
 | `docs/cambios_pendientes_main.md` | Los cambios propuestos al artículo y su justificación |
 
 ### Pruebas automáticas
@@ -213,13 +214,25 @@ Para ejecutar el experimento de verdad hace falta una clave de API
 
 ## Distribución del trabajo
 
-**En esta entrega intermedia**, la implementación la realizó **Diego Fernando
-Chavarro** con asistencia de Claude Code (Anthropic) como herramienta de
-programación, según se declara en el artículo. El diseño experimental y las
-decisiones metodológicas están documentados en `docs/DECISIONES.md` para que el
-equipo pueda revisarlos.
+**Planteamiento y marco teórico** (Secciones I y II del artículo, revisión de la
+literatura y referencias): elaborados conjuntamente por Laura Alejandra Venegas Piraban,
+David Palacios y Diego Fernando Chavarro.
 
-**Reparto propuesto para la entrega final:**
+**Implementación y corrida piloto** (Fases 0 a 9): Diego Fernando Chavarro, con apoyo de
+Claude y Claude Code según se declara en el artículo.
+
+**Revisión de la entrega intermedia:** Laura verificó desde cero la reproducibilidad del
+repositorio ([informe](docs/revisiones/verificacion_reproducibilidad.md)) y David contrastó
+las cifras, tablas y anexos del artículo con los datos del piloto
+([informe](docs/revisiones/revision_articulo_vs_datos.md)). Los tres integrantes revisaron
+y aprobaron el artículo, el resumen provisional y la declaración de uso de IA.
+
+**Una consecuencia metodológica de este reparto:** Laura y David no participaron en la
+construcción de la batería de ataques ni de los filtros. Eso los habilita como auditores
+independientes de la corrida definitiva, que es justamente lo que el protocolo exige para
+que el índice κ de Cohen tenga sentido.
+
+### Reparto propuesto para la entrega final
 
 | Integrante | Responsabilidad |
 |---|---|

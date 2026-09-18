@@ -131,20 +131,25 @@ LARGO_SIN_CORTE = 28
 PASO_DE_CORTE = 18
 
 
-def _permitir_cortes(texto: str) -> str:
-    """Ofrece puntos de corte dentro de las secuencias largas sin espacios.
+#: Marcador interno para señalar un punto de corte. Se elige un carácter que no
+#: aparece en los payloads ni en ninguna secuencia de escape de LaTeX.
+_MARCA_DE_CORTE = "\x00"
 
-    Una carga en Base64 es una sola «palabra» de más de cien caracteres. LaTeX no
-    puede partirla en ningún sitio, así que la saca del margen y el payload
-    aparece truncado en el PDF. Se insertan ``\\allowbreak`` cada pocos
-    caracteres: son puntos donde LaTeX *puede* cortar, sin guión y sin alterar el
-    texto compuesto. Se usa ``\\allowbreak`` y no el paquete ``seqsplit`` para no
-    añadir dependencias al preámbulo del artículo.
+
+def _marcar_cortes(texto: str) -> str:
+    """Marca puntos de corte dentro de las secuencias largas sin espacios.
+
+    Trabaja sobre el texto ORIGINAL, antes de escapar. Es la parte importante:
+    en una versión anterior el troceo se aplicaba al texto ya escapado y partía
+    los propios comandos de LaTeX. ``\\textbar{}`` acababa como
+    ``\\textba\\allowbreak{}r{}``, y el payload de A13 se imprimía
+    ``<rim_startar>`` en vez de ``<|im_start|>``. Marcando primero y escapando
+    después, cada punto de corte cae necesariamente entre dos escapes completos.
     """
     def trocear(match: "re.Match[str]") -> str:
         palabra = match.group(0)
         trozos = [palabra[i : i + PASO_DE_CORTE] for i in range(0, len(palabra), PASO_DE_CORTE)]
-        return r"\allowbreak{}".join(trozos)
+        return _MARCA_DE_CORTE.join(trozos)
 
     return re.sub(rf"\S{{{LARGO_SIN_CORTE},}}", trocear, texto)
 
@@ -152,12 +157,18 @@ def _permitir_cortes(texto: str) -> str:
 def escapar(texto: str) -> str:
     """Escapa ``texto`` para LaTeX y convierte los saltos de línea en ``\\newline``.
 
-    Las secuencias muy largas sin espacios reciben puntos de corte, para que no
-    desborden la columna (ver :func:`_permitir_cortes`).
+    Orden de las operaciones: se marcan los cortes sobre el texto original, se
+    escapa, y solo entonces las marcas se sustituyen por ``\\allowbreak``. Así el
+    troceo no puede caer dentro de una secuencia de escape.
     """
     lineas = [linea.strip() for linea in texto.split("\n")]
     lineas = [linea for linea in lineas if linea]
-    escapadas = (_permitir_cortes(linea.translate(_LATEX_ESCAPES)) for linea in lineas)
+    escapadas = (
+        _marcar_cortes(linea).translate(_LATEX_ESCAPES).replace(
+            _MARCA_DE_CORTE, r"\allowbreak{}"
+        )
+        for linea in lineas
+    )
     return r"\newline ".join(escapadas)
 
 

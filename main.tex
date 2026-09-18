@@ -3,7 +3,12 @@
 % ---------- Codificación e idioma ----------
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[spanish,es-tabla]{babel}
+% es-noshorthands desactiva los atajos de babel: sin él, '<<' y '>>' se
+% convierten en guillemets incluso dentro de \texttt, y los delimitadores del
+% experimento se imprimen como «<USER_DATA_a91f»>. Verificado que nada del
+% documento depende de esos atajos (no hay '"a' ni secuencias '<<'/'>>' que
+% pretendan ser comillas; las citas usan `` y '').
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
 
 % ---------- Matemáticas y tablas ----------
 \usepackage{amsmath}
@@ -63,7 +68,8 @@ arquitectura de cinco capas ---delimitación estructural, refuerzo por enmarcado
 filtrado de entrada, protección anti-extracción y validación de salida---,
 enfrentados a una batería de 20 ataques en cinco categorías y a 20 consultas
 legítimas. La batería se congeló antes de implementar las defensas, y las
-defensas se construyeron sin acceso a ella. En una corrida piloto de 80
+defensas se desarrollaron y calibraron sin evaluarlas contra ella, con controles
+automáticos que lo verifican (véase la Sección~\ref{sec:controles}). En una corrida piloto de 80
 interacciones, la tasa de éxito de los ataques pasó del 15\,\% en la línea base al
 0\,\% en la condición protegida, sin que ninguna consulta legítima resultara
 bloqueada en ninguna de las dos. Estos resultados son preliminares: proceden de
@@ -115,6 +121,7 @@ La magnitud de este fenómeno fue evidenciada en un análisis sistemático recie
 
 %..............................................................
 \subsection{Taxonomía de ataques de inyección de instrucciones}
+\label{sec:taxonomia}
 
 El estudio formal de estas vulnerabilidades comenzó con el trabajo de Perez y Ribeiro \cite{ref1}, quienes definieron dos vectores de ataque fundamentales: el \textit{goal hijacking} (desviar al modelo de su propósito original para forzarlo a cumplir el del atacante) y el \textit{prompt leaking} (extraer las directrices confidenciales del sistema). Su investigación dejó en evidencia una realidad preocupante: no se requiere un perfil técnico avanzado para perpetrar estos ataques, ya que bastan entradas de texto relativamente sencillas para comprometer el sistema.
 
@@ -399,7 +406,7 @@ del sistema donde una decisión no depende del comportamiento del LLM.
 \begin{itemize}
     \item \textbf{L1 --- Delimitación estructural.} La entrada del usuario
     se encapsula entre delimitadores explícitos y de alta entropía
-    (\texttt{\textless\textless\textless USER\_DATA\_a91f\textgreater\textgreater\textgreater{} ... \textless\textless\textless/USER\_DATA\_a91f\textgreater\textgreater\textgreater}) y se
+    (\texttt{<<<USER\_DATA\_a91f>>> ... <<</USER\_DATA\_a91f>>>}) y se
     envía en un rol de mensaje distinto al del sistema. El
     \textit{system prompt} declara explícitamente que todo lo contenido
     entre delimitadores es dato a procesar y nunca instrucción a obedecer,
@@ -470,8 +477,8 @@ del sistema donde una decisión no depende del comportamiento del LLM.
 \node[seg, fill=white, below=0pt of l2a] (l4)
   {\textbf{L4} Restricción anti-\textit{leaking} + \textit{few-shot} de rechazo};
 \node[seg, fill=black!12, below=0pt of l4] (l1)
-  {\textbf{L1} \texttt{\textless\textless\textless USER\_DATA\textgreater\textgreater\textgreater}\\ entrada del usuario delimitada
-   \\\texttt{\textless\textless\textless/USER\_DATA\textgreater\textgreater\textgreater}};
+  {\textbf{L1} \texttt{<<<USER\_DATA>>>}\\ entrada del usuario delimitada
+   \\\texttt{<<</USER\_DATA>>>}};
 \node[seg, fill=white, below=0pt of l1] (l2b)
   {\textbf{L2} Instrucción reforzada (post)};
 
@@ -864,6 +871,45 @@ constancia de que el modelo no se eligió probando hasta encontrar uno
 suficientemente vulnerable, que habría sido ajustar el instrumento al
 resultado deseado.
 
+\subsection{Controles contra el sesgo del experimentador}
+\label{sec:controles}
+
+Un experimento en el que la misma persona escribe los ataques y las defensas
+está expuesto a un sesgo particular: nada impide, ni siquiera de forma
+involuntaria, ajustar una cosa a la otra hasta que los resultados salgan como se
+espera. Un filtro afinado contra los veinte payloads con los que después se le
+evalúa produce un ASR excelente que no generaliza a ningún ataque real. Para
+evitarlo se adoptaron tres controles, verificables de forma automática.
+
+\textbf{Preregistro de la batería.} Los 20 ataques y los 20 \textit{prompts}
+benignos se fijaron \emph{antes} de escribir una sola línea de los filtros. Sus
+huellas SHA-256 quedaron registradas en un manifiesto, y la suite de pruebas las
+compara en cada ejecución: cualquier modificación posterior de la batería hace
+fallar las pruebas y obliga a regenerar el manifiesto de forma explícita. El
+estado congelado está marcado con una etiqueta en el repositorio.
+
+\textbf{Desarrollo con un conjunto independiente.} Las capas L3 y L5 se
+construyeron y se depuraron contra un conjunto de desarrollo escrito a mano
+---25 ataques y 15 consultas legítimas--- redactado a partir de las descripciones
+genéricas de técnica de la Sección~\ref{sec:taxonomia}, no de los payloads
+congelados. Durante toda esa fase, la condición B no se evaluó contra la batería.
+Dos comprobaciones automáticas lo sostienen: un rastreo que rechaza cualquier
+referencia a los ataques congelados desde el código de las defensas o desde sus
+pruebas, y una prueba que exige cero coincidencias de cinco palabras consecutivas
+entre los ataques de desarrollo y los de la batería. Esta última detectó siete
+coincidencias en el primer borrador del conjunto de desarrollo, que hubo que
+reescribir.
+
+\textbf{Calibración únicamente con \textit{prompts} legítimos.} El umbral de
+coincidencia de $n$-gramas de L5 se fijó ejecutando 35 consultas legítimas y
+tomando el valor inmediatamente superior al máximo observado. Calibrarlo contra
+los ataques habría vuelto a ajustar la defensa a aquello con lo que se la mide;
+calibrarlo contra consultas legítimas responde a una pregunta distinta y
+legítima, que es cuál es el umbral más estricto que no rompe la usabilidad.
+
+La Sección~\ref{sec:desviaciones} documenta la única desviación observada
+respecto de estos controles.
+
 \subsection{Desviaciones del protocolo}
 \label{sec:desviaciones}
 
@@ -892,6 +938,7 @@ qué criterio, de modo que la decisión no dependiera de los resultados
 observados.
 
 \subsection{Consideraciones éticas}
+\label{sec:etica}
 
 La totalidad del experimento se ejecutó en un entorno controlado y
 aislado, sobre asistentes desarrollados exclusivamente para este estudio.
@@ -994,13 +1041,42 @@ reproducirse exactamente sobre esa versión. El registro de decisiones
 metodológicas, con su fecha y su justificación, y el registro de incidencias
 acompañan al código en el mismo repositorio.
 
-% REVISAR CON EL EQUIPO
-\section*{Declaración de uso de herramientas de IA}
+\section*{Contribuciones de los autores}
+% CONFIRMAR CON EL EQUIPO: esta sección solo es cierta si Laura y David
+% completan las revisiones descritas en docs/revisiones/.
+L.~A.~Venegas Piraban, D.~Palacios y D.~F.~Chavarro: planteamiento del problema,
+revisión de la literatura y redacción de las Secciones~I y~II. D.~F.~Chavarro:
+diseño de la metodología, implementación del software, ejecución de la corrida
+piloto y redacción de las Secciones~III y~IV. L.~A.~Venegas Piraban:
+verificación independiente de la reproducibilidad del repositorio.
+D.~Palacios: contraste de las cifras, tablas y anexos del artículo con los datos
+del piloto. Todos los autores revisaron y aprobaron la versión presentada.
 
-Se utilizó Claude Code (Anthropic) como asistente de programación para
-implementar el código del experimento. El diseño experimental, la revisión de las
-decisiones metodológicas y la interpretación de los resultados son
-responsabilidad de los autores.
+\section*{Declaración de uso de herramientas de inteligencia artificial}
+
+En este trabajo se emplearon herramientas de inteligencia artificial generativa
+de Anthropic de dos formas.
+
+\textbf{Claude como apoyo metodológico.} El asistente conversacional Claude se
+utilizó como referencia y apoyo durante la planificación y el análisis: propuso
+el plan de trabajo por fases, borradores de la batería de ataques y de los
+\textit{system prompts}, y los controles metodológicos del estudio (preregistro
+de la batería, regla de viabilidad del modelo y regla antisesgo). Esas
+propuestas, así como los resultados intermedios, se discutieron y sobre ellos se
+tomaron las decisiones: qué adoptar, qué modificar y qué acciones emprender,
+incluido el cambio de modelo y la corrección de los incidentes documentados.
+
+\textbf{Claude Code como asistente de desarrollo guiado.} El software del
+experimento se implementó con Claude Code bajo instrucciones escritas y
+verificables, con 183 pruebas automáticas y revisión de cada cambio mediante el
+control de versiones. Su uso incluyó una sesión de trabajo autónomo acotada por
+prohibiciones explícitas; las instrucciones, la bitácora y las incidencias de esa
+sesión se publican sin retoques en el repositorio (\texttt{docs/proceso/}).
+
+Ninguna herramienta ejecutó ataques fuera del entorno controlado descrito en la
+Sección~\ref{sec:etica}. La responsabilidad sobre el diseño experimental, la
+interpretación de los resultados y el contenido de este artículo corresponde
+exclusivamente a los autores.
 
 \FloatBarrier
 

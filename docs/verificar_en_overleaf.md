@@ -44,14 +44,35 @@ columnas **no admiten** `h` ni `b`.
 **Si alguna sigue lejos de su cita:** mover el entorno en el fuente, más cerca del
 párrafo que la menciona.
 
-### 0.2 Los delimitadores ya no salen como guillemets (punto 10)
+### 0.2 Los delimitadores ya no salen como guillemets
 
 **Qué mirar:** en **III-D** (ítem L1) y en la **Fig. 3** (nodo TikZ de la
-arquitectura de B), que se lea `<<<USER_DATA_a91f>>>` y no `«<USER_DATA_a91f»>`.
+arquitectura de B), que se lea `<<<USER_DATA_a91f>>>` y `<<</USER_DATA_a91f>>>`, y
+no `«<USER_DATA_a91f»>`.
 
-Ambos sitios usan ya `\textless` y `\textgreater`. De paso se corrigió una
-inconsistencia de la figura, donde el delimitador de cierre llevaba dos `<` en
-lugar de tres.
+La causa era babel: con la opción `spanish` convertía `<<` y `>>` en guillemets
+**incluso dentro de `\texttt`**. Ahora el preámbulo carga
+`\usepackage[spanish,es-noshorthands,es-tabla]{babel}`, que desactiva esos
+atajos, y los delimitadores se escriben en su forma literal. Se verificó que nada
+del documento dependía de los atajos: no hay secuencias `<<`/`>>` que pretendan
+ser comillas, y las citas usan `` `` `` y `''`.
+
+De paso se corrigió una inconsistencia de la figura, donde el delimitador de
+cierre llevaba dos `<` en lugar de tres.
+
+### 0.2b El payload de A13 en el Anexo A
+
+**Qué mirar:** que A13 muestre `<|im_start|>system` y `<|im_end|>`, y **no**
+`<rim_startar>` ni `<rim_end|>`.
+
+La causa era un error propio: la función que inserta puntos de corte para las
+cadenas largas se aplicaba **después** de escapar, y partía los comandos de
+LaTeX por la mitad (`\textbar{}` acababa como `\textba\allowbreak{}r{}`). Ahora
+los cortes se marcan sobre el texto original y se escapan después, de modo que
+siempre caen entre dos escapes completos.
+
+Mirar también, en la misma tabla: **A03** con sus `###` y **A19** con sus
+comillas rectas.
 
 ### 0.3 El payload Base64 de A17 ya no se desborda (punto 11)
 
@@ -71,8 +92,13 @@ cadena original.
 después de la raya**, y que ninguna palabra aparezca partida por la mitad al
 final de línea.
 
-El mapeo `literate` llevaba macros sin `{}` detrás, y TeX se comía el espacio
-siguiente. Ahora `breakatwhitespace=true` evita además partir palabras.
+Hubo dos causas. La primera, un mapeo `literate` con macros sin `{}` detrás, que
+dejaba que TeX se comiera el espacio siguiente. La segunda, y probablemente la
+determinante: `columns=fullflexible` **sin** `keepspaces=true`, combinación con la
+que `listings` no conserva los espacios tal cual. Ahora están puestos
+`keepspaces=true`, `breakatwhitespace=true` y, de forma redundante y a propósito,
+un mapeo de dos caracteres para «raya seguida de espacio». No se pudo compilar
+para determinar cuál de las dos causas pesaba más, así que se corrigieron ambas.
 
 `scripts/export_annex_b.py` **verifica de forma automática**, cada vez que se
 ejecuta, que los bloques del anexo coinciden carácter por carácter con los

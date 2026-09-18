@@ -127,9 +127,16 @@ tests y obliga a regenerar el manifiesto de forma explícita y documentada.
 
 **Fecha:** 2026-09-18 · **Evidencia:** commit `57f6c84`, `tests/test_antisesgo.py`
 
-Mientras se construían las capas, la condición B solo se probó con prompts
-benignos y con un conjunto de **ataques de desarrollo escritos a mano**
-(`data/dev_attacks.json`). Ningún test de B podía leer la batería congelada.
+Mientras se construían las capas, la condición B se desarrolló y se calibró
+**sin evaluarla contra la batería congelada**: solo con prompts benignos y con un
+conjunto de **ataques de desarrollo escritos a mano** (`data/dev_attacks.json`).
+Ningún test de la condición B ni ningún módulo de `src/defenses/` puede
+referenciar los ataques congelados, y un control automático lo comprueba.
+
+La formulación exacta importa. No se afirma que la batería fuera inaccesible
+---está en el mismo repositorio--- sino que las defensas no se midieron contra
+ella hasta el piloto, que es lo que el control garantiza. La única desviación
+observada respecto de esa regla está documentada en la decisión 12.
 
 **Alternativa descartada:** desarrollar L3 y L5 mirando los 20 ataques reales,
 que es lo natural y lo que hace casi todo el mundo.

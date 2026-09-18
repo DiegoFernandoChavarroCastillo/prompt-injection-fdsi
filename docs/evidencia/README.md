@@ -41,6 +41,17 @@ Equivalencias:
 Corregir esas rutas es lo primero que debe hacerse **después** de la corrida
 definitiva, cuando la congelación deje de estar vigente.
 
+## Revisión cruzada de la entrega
+
+Las verificaciones de esta carpeta las produjo quien construyó el experimento. La
+revisión **independiente**, a cargo de los integrantes que no lo implementaron,
+vive en [`../revisiones/`](../revisiones/):
+
+| Informe | Revisor | Qué comprueba |
+|---|---|---|
+| [`verificacion_reproducibilidad.md`](../revisiones/verificacion_reproducibilidad.md) | Laura Alejandra Venegas Piraban | Que el repositorio se clona, se instala y regenera las cifras publicadas en otra máquina |
+| [`revision_articulo_vs_datos.md`](../revisiones/revision_articulo_vs_datos.md) | David Palacios | Que cada cifra del artículo se corresponde con los datos del piloto |
+
 ## Qué NO está aquí
 
 Los datos del experimento están en [`../../logs/pilot/`](../../logs/pilot/)

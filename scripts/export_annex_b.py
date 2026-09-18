@@ -57,6 +57,11 @@ LITERATE = (
     r'{ü}{{\"u}}1 {Ü}{{\"U}}1 '
     r"{¿}{{\textquestiondown{}}}1 {¡}{{\textexclamdown{}}}1 "
     r"{«}{{\guillemotleft{}}}1 {»}{{\guillemotright{}}}1 "
+    # La raya seguida de espacio se mapea como par de DOS caracteres, antes que
+    # la raya suelta, para emitir el espacio de forma explícita. Es redundante
+    # con keepspaces=true, y a propósito: no se pudo compilar para comprobar
+    # cuál de los dos era el responsable del espacio perdido.
+    r"{— }{{\textemdash{} }}2 "
     r"{—}{{\textemdash{}}}1 {–}{{\textendash{}}}1 {…}{{\textellipsis{}}}1"
 )
 
@@ -93,6 +98,12 @@ def bloque(titulo: str, contenido: str, etiqueta: str) -> str:
         f"\\label{{{etiqueta}}}\n\n"
         "\\begin{lstlisting}[basicstyle=\\ttfamily\\scriptsize, breaklines=true,\n"
         "                   breakatwhitespace=true, columns=fullflexible,\n"
+        # keepspaces=true es imprescindible aquí. Con columns=fullflexible,
+        # listings NO conserva los espacios por defecto: los ajusta al componer.
+        # Por eso "[SEGURIDAD — ENTRADA DEL USUARIO]" perdía el espacio tras la
+        # raya. El Anexo B publica el texto exacto que recibió el modelo, así que
+        # un espacio de menos lo convierte en una afirmación falsa.
+        "                   keepspaces=true, showspaces=false,\n"
         f"                   extendedchars=true, literate={LITERATE}]\n"
         f"{contenido.rstrip()}\n"
         "\\end{lstlisting}\n"
