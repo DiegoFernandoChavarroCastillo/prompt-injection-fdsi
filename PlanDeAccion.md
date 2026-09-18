@@ -274,6 +274,16 @@ entrada → L3 (filtro) → [bloqueo → mensaje neutro]
 
 ---
 
+> **Congelación para la corrida final.** La corrida definitiva (N=5, 400 interacciones)
+> se ejecuta sobre el tag **`final-freeze`**, que incluye el arreglo de B-02 (el espaciado
+> entre llamadas salió de `respond()`, de modo que `latency_ms` mide el trabajo del chatbot
+> y no la espera de rate limit). Desde ese tag no se toca `src/`, `prompts/` ni `data/`
+> hasta que la corrida final termine y se analice.
+>
+> Consecuencia para el artículo: el sobrecosto de latencia del **piloto** se reporta solo
+> con `api_latency_ms`, porque su log es anterior al arreglo; el de la **corrida final**
+> puede usar las dos cifras, y su diferencia sí mide el costo de las capas deterministas.
+
 ## Fase 7 — Corrida piloto (N=1)
 
 **Objetivo:** 40 prompts × 2 condiciones = **80 interacciones**, analizadas.
