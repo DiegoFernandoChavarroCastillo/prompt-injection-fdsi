@@ -27,10 +27,21 @@ from src.config import PROJECT_ROOT
 #: muchas formas, pero todas acaban nombrando alguna de estas cadenas.
 MARCADORES_PROHIBIDOS = (
     "attacks_v1",       # el archivo de datos
-    "load_attacks",     # el cargador de src.battery
-    "src.battery",      # el módulo entero
+    "load_attacks",     # el cargador de los ataques
     "paths.attacks",    # la ruta desde la config
 )
+
+#: ``src.battery`` NO está en la lista a propósito: los tests de L3 deben cargar
+#: ``benign_v1.json`` con ``load_benign``, porque calibrar contra los benignos es
+#: obligatorio (es lo que mide el FPR) y no introduce sesgo — el filtro no se
+#: está ajustando a los ataques con los que se le evaluará. La prohibición es
+#: sobre los ataques, no sobre el módulo.
+
+#: Único archivo de tests de defensas autorizado a leer la batería de ataques, y
+#: solo para comprobar que el conjunto de desarrollo NO se parece a ella. Por eso
+#: queda fuera de PATRONES_VIGILADOS: si se vigilara a sí mismo, no podría hacer
+#: su trabajo.
+EXCEPCION_AUTORIZADA = "test_dev_set_independence.py"
 
 #: Archivos sujetos a la regla: los tests de la condición B y el código de las
 #: capas. Se usa glob para que los tests que se añadan en 4b y 4c
@@ -93,3 +104,20 @@ def test_los_tests_de_la_condicion_a_si_pueden_usar_la_bateria():
     """
     contenido = (PROJECT_ROOT / "tests" / "test_chatbot_a.py").read_text(encoding="utf-8")
     assert any(m in contenido for m in MARCADORES_PROHIBIDOS)
+
+
+def test_la_unica_excepcion_autorizada_esta_fuera_de_la_vigilancia():
+    """``test_dev_set_independence.py`` queda excluido, y solo él.
+
+    Ese archivo compara el conjunto de desarrollo con la batería para probar que
+    no se parecen; necesita leer ambos. Cualquier OTRO archivo de tests de
+    defensas que quisiera leer los ataques sí debe ser rechazado.
+    """
+    vigilados = {a.name for a in archivos_vigilados()}
+    assert EXCEPCION_AUTORIZADA not in vigilados
+
+    excepcion = PROJECT_ROOT / "tests" / EXCEPCION_AUTORIZADA
+    assert excepcion.exists(), "La excepción autorizada debe existir de verdad"
+
+    # Y los archivos de defensas que sí se vigilan siguen siendo los esperados.
+    assert vigilados >= {"test_chatbot_b.py", "test_l3.py", "test_l5.py"}

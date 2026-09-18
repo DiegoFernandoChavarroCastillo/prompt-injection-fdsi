@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.config import Config, ConfigError, get_config
+from src.config import PROJECT_ROOT, Config, ConfigError, get_config
 
 #: Categorías de ataque (Tabla 3 del artículo). 4 ataques en cada una.
 CATEGORIES: tuple[str, ...] = ("C1", "C2", "C3", "C4", "C5")
@@ -224,6 +224,33 @@ def load_benign(config: Config | None = None) -> tuple[BenignPrompt, ...]:
             )
         )
     return tuple(prompts)
+
+
+# -- Conjunto de desarrollo (Fase 4) ----------------------------------------
+#
+# NO forma parte del preregistro ni del experimento: sirve para construir y
+# probar L3 y L5, y no entra en ninguna métrica. Vive en una ruta fija y no en
+# config/experiment.yaml precisamente para que no se confunda con los datos.
+
+DEV_SET_PATH = PROJECT_ROOT / "data" / "dev_attacks.json"
+
+
+def load_dev_set() -> dict:
+    """Lee ``data/dev_attacks.json``: ataques y benignos de desarrollo.
+
+    Returns:
+        dict con las claves ``attacks`` y ``benign``, cada una una lista de
+        objetos con ``id`` y ``payload``.
+
+    Raises:
+        src.config.ConfigError: si el archivo falta o no es JSON válido.
+    """
+    try:
+        return json.loads(DEV_SET_PATH.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ConfigError(f"No se pudo leer el conjunto de desarrollo: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ConfigError(f"{DEV_SET_PATH} no es JSON válido: {exc}") from exc
 
 
 # -- Preregistro: hashes y manifiesto ---------------------------------------
