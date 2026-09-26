@@ -15,6 +15,7 @@ corrida definitiva con N=5 y la auditoría manual independiente.
 
 | Si quieres… | Ve a |
 |---|---|
+| Ver la propuesta de valor: qué cuesta y qué aporta | **[Entrega3.md](Entrega3.md)** |
 | Ver qué se entregó y dónde está cada cosa | **[Entregables.md](Entregables.md)** |
 | Entender por qué el experimento está montado así | **[docs/DECISIONES.md](docs/DECISIONES.md)** |
 | Leer el artículo | **[docs/articulo_entrega2.pdf](docs/articulo_entrega2.pdf)** — si aún no está, compilar [main.tex](main.tex) en Overleaf |
@@ -224,6 +225,7 @@ y quedaron fijadas en la Fase 0.
 
 ```
 prompt-injection-fdsi/
+├── Entrega3.md                # propuesta de valor: costos, beneficios y métricas
 ├── Entregables.md             # qué se entregó y dónde está cada cosa
 ├── main.tex                   # el artículo (compilar en Overleaf)
 ├── config/experiment.yaml     # variables controladas del experimento

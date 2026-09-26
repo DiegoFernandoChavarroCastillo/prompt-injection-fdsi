@@ -32,13 +32,16 @@ Recomendamos revisar el material en este orden:
 1. **El artículo** ([`docs/articulo_entrega2.pdf`](docs/articulo_entrega2.pdf), compilado
    desde `main.tex`) — el trabajo en sí. La Sección IV trae los
    resultados del piloto, marcados como preliminares.
-2. **Este documento** — qué se entregó y dónde está cada cosa.
-3. **Los resultados del piloto** (`results/pilot/`) — las cifras, los casos que
+2. **La propuesta de valor** ([`Entrega3.md`](Entrega3.md)) — qué cuesta la defensa,
+   qué aporta y por qué las cifras son creíbles. Es el documento que resume el
+   argumento del proyecto en términos de costo y beneficio.
+3. **Este documento** — qué se entregó y dónde está cada cosa.
+4. **Los resultados del piloto** (`results/pilot/`) — las cifras, los casos que
    necesitaron revisión humana y las observaciones descriptivas.
-4. **El registro de decisiones** (`docs/DECISIONES.md`) — por qué cada decisión
+5. **El registro de decisiones** (`docs/DECISIONES.md`) — por qué cada decisión
    metodológica se tomó así y qué alternativa se descartó. Es lo que permite
    juzgar si el experimento está bien montado.
-5. **El código** (`src/`) — solo si se quiere verificar la implementación.
+6. **El código** (`src/`) — solo si se quiere verificar la implementación.
 
 ---
 
@@ -54,6 +57,7 @@ Recomendamos revisar el material en este orden:
 | `docs/anexo_B.tex` | Anexo B generado: los prompts de ambas condiciones y el diff que prueba su simetría |
 | `docs/seccion_IV_piloto.tex` | Subsección de resultados preliminares, incluida en la Sección IV |
 | `docs/verificar_en_overleaf.md` | Puntos a comprobar al compilar; no se pudo compilar LaTeX en la máquina de desarrollo |
+| [`Entrega3.md`](Entrega3.md) | **Propuesta de valor**: costos de operación y de construcción, beneficios cuantificados, métricas de interés y las preguntas que esperamos del jurado |
 
 *El PDF se genera compilando `main.tex` en Overleaf. Si `main.tex` cambia, hay que
 volver a generarlo: ver [`docs/verificar_en_overleaf.md`](docs/verificar_en_overleaf.md).*
