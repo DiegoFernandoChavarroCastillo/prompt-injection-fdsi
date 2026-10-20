@@ -258,7 +258,7 @@ def respond(
     raw_model_output = result["text"]
 
     # -- L5: validar antes de entregar ---------------------------------------
-    l5_result = l5.validate_output(raw_model_output)
+    l5_result = l5.validate_output(raw_model_output, config)
     if l5_result["passed"]:
         response = raw_model_output
         blocked_by = None

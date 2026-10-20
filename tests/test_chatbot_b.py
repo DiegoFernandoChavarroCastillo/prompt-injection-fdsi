@@ -89,7 +89,7 @@ class FakeL5:
         self.llamadas = 0
         self.visto: str | None = None
 
-    def validate_output(self, text: str) -> dict:
+    def validate_output(self, text: str, config=None) -> dict:
         self.llamadas += 1
         self.visto = text
         return {
