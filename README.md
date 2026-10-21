@@ -16,6 +16,7 @@ corrida definitiva con N=5 y la auditoría manual independiente.
 | Si quieres… | Ve a |
 |---|---|
 | Ver la propuesta de valor: qué cuesta y qué aporta | **[Entrega3.md](Entrega3.md)** |
+| Enseñar el sistema funcionando, en el navegador | **[Demo web](#demo-web-para-la-presentación)** |
 | Ver qué se entregó y dónde está cada cosa | **[Entregables.md](Entregables.md)** |
 | Entender por qué el experimento está montado así | **[docs/DECISIONES.md](docs/DECISIONES.md)** |
 | Leer el artículo | **[docs/articulo_entrega2.pdf](docs/articulo_entrega2.pdf)** — si aún no está, compilar [main.tex](main.tex) en Overleaf |
@@ -126,6 +127,31 @@ Imprime el payload, la respuesta, el razonamiento interno (rotulado aparte) y la
 **No escribe en `logs/`**: lo que se prueba a mano no es dato del experimento, y mezclarlo
 con las corridas contaminaría el corpus del que salen el ASR y el FPR. Los datos los produce
 únicamente `src/runner.py`. Consume cuota: cada ejecución es una llamada real.
+
+### Demo web para la presentación
+
+Una interfaz de chat para enseñar el sistema ante el jurado: selector **A sin defensas /
+B protegido**, caja de texto libre, los casos de la batería que marcan la diferencia,
+**Rayos X** de cada respuesta (qué capa actuó y por qué), comparación lado a lado,
+interruptores de L2, L3 y L5, y el panel con las cifras de la corrida definitiva.
+
+```bash
+pip install -r requirements-demo.txt          # además de requirements.txt
+python -m uvicorn demo.server:app --port 8000
+# abrir http://localhost:8000
+```
+
+- **En vivo con respaldo.** Llama de verdad a Groq. Si la API o internet fallan, los casos
+  predefinidos responden con lo grabado en la corrida definitiva y lo indican con la
+  insignia «Grabada». En la configuración hay un **modo sin conexión** que lo fuerza; sin
+  `LLM_API_KEY` la demo arranca directamente en ese modo.
+- **Solo importa `src/`, no lo modifica.** Las capas se apagan inyectando dobles por los
+  parámetros de `chatbot_b.respond`. Igual que `try_chatbot.py`, **no escribe en `logs/`**.
+- **Los datos grabados** están en `demo/data/snapshot.json`, que se versiona porque
+  `logs/final/*.jsonl` no. Se regenera con `python demo/build_snapshot.py` si cambia el log
+  (por ejemplo, al incorporar la revisión manual).
+- El secreto interno (canary) nunca llega al navegador: se sustituye por una marca que la
+  interfaz resalta en rojo si una respuesta llega a filtrarlo.
 
 ### Correr el piloto, clasificar y sacar métricas
 

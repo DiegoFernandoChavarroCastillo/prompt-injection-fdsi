@@ -1,0 +1,9 @@
+# Dependencias de la demo web (demo/), aparte de requirements.txt a propósito:
+# requirements.txt es parte del stack congelado del experimento (Tabla 6) y la
+# demo no debe moverlo. Instalar encima del entorno del experimento:
+#
+#   pip install -r requirements.txt -r requirements-demo.txt
+
+fastapi==0.156.4        # servidor de la demo
+uvicorn==0.54.0         # servidor ASGI: python -m uvicorn demo.server:app
+httpx==0.28.1           # lo exige fastapi.testclient en tests/test_demo.py
