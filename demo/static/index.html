@@ -23,6 +23,11 @@
           <p class="brand-meta">Demo · chatbot de Seguros Colibrí</p>
         </div>
       </header>
+      <div class="model-pick">
+        <label for="model-select">Modelo de Groq <span class="muted">(el mismo en los dos modos)</span></label>
+        <select id="model-select"></select>
+        <p class="model-hint" id="model-hint" aria-live="polite"></p>
+      </div>
       <div class="col-head">
         <h2 id="prompts-title">Prompts de la batería</h2>
         <p class="legend" aria-label="Leyenda de los puntos: cada punto es una de las 5 repeticiones de la corrida definitiva">
@@ -128,7 +133,7 @@
           <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-stop-B">0</span></p>
         </div>
         <div class="metric ref">
-          <p class="metric-name">Consulta legítima en la corrida definitiva</p>
+          <p class="metric-name">Consulta legítima en la corrida definitiva (GPT-OSS 120B)</p>
           <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-ref-A">—</span></p>
           <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-ref-B">—</span></p>
         </div>
@@ -140,7 +145,7 @@
       </section>
 
       <footer class="facts">
-        <p>Corrida definitiva: sin protección pasaron <b>9 a 15 de 100</b> ataques; con PromptX, <b>0 de 100</b>. 0 consultas legítimas bloqueadas.</p>
+        <p>Corrida definitiva con GPT-OSS 120B: sin protección pasaron <b>9 a 15 de 100</b> ataques; con PromptX, <b>0 de 100</b>. 0 consultas legítimas bloqueadas.</p>
         <p>Proteger cuesta <b>≈ +70 USD por millón de mensajes</b>.</p>
         <p>Ser atacado: un chatbot «vendió» una camioneta de 76 000 USD por 1 USD (2023); un tribunal hizo responsable a Air Canada por lo que dijo el suyo (2024).</p>
       </footer>

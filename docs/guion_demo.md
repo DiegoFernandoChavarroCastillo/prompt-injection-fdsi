@@ -14,6 +14,11 @@ python -m uvicorn demo.server:app --port 8000
 - Si la sala no tiene internet, abre el engranaje y activa **modo sin conexión**.
   Sin `LLM_API_KEY` ya arranca así.
 - Pulsa **Nueva conversación** en los dos modos si quedaron mensajes de un ensayo.
+- **Si hay internet**, elige **ALLaM 2 7B** en el selector de modelo: GPT-OSS 120B
+  resiste casi todos los ataques por su cuenta y el contraste se ve poco. Dilo en
+  voz alta: «para la demo usamos un modelo pequeño y más vulnerable; las cifras de
+  la derecha son del experimento con GPT-OSS 120B». Sin internet, la demo usa lo
+  grabado con GPT-OSS 120B y el guion sigue igual.
 - La pantalla tiene tres zonas: prompts a la izquierda, teléfono al centro y
   costos a la derecha. No hay pestañas ni nada que buscar.
 
@@ -110,6 +115,10 @@ de la derecha, de arriba abajo:
 | En vivo, una respuesta sale distinta a la grabada | Es lo esperado: temperatura 0,7. Por eso la corrida es N=5 y las tarjetas muestran las 5 repeticiones |
 
 ## Lo que NO hay que decir
+
+- Que PromptX es infalible con ALLaM: en el sondeo, de los 15 ataques que no
+  fallaron sin protección, con PromptX pasó 1 (A14) y 4 quedaron dudosos. Con el
+  modelo del experimento fueron 0 de 100.
 
 - Que el chatbot «recuerda» la conversación: cada mensaje se evalúa solo, como
   en el experimento. El historial del teléfono es solo visual.

@@ -30,6 +30,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from demo.models import DEFAULT_MODEL, MODELS, get_model
 from demo.presets import PRESET_IDS, PRESETS
 from src import chatbot_a, chatbot_b
 from src.battery import load_attacks, load_benign
@@ -45,7 +46,8 @@ STATIC_DIR = DEMO_DIR / "static"
 SNAPSHOT_PATH = DEMO_DIR / "data" / "snapshot.json"
 
 #: Precio de gpt-oss-120b en Groq, USD por millón de tokens. Son los mismos que
-#: usa Entrega3.md para el costo por conversación.
+#: usa Entrega3.md para el costo por conversación. Los de los demás modelos que
+#: ofrece la demo están en demo/models.py.
 PRICE_IN_PER_M = 0.15
 PRICE_OUT_PER_M = 0.60
 
@@ -87,6 +89,7 @@ class DemoState:
         self.has_key = bool(config.api_key)
         self.offline = not self.has_key
         self._client = client
+        self._clients: dict[str, LLMClient] = {}
         self._lock = threading.Lock()
 
     @property
@@ -95,6 +98,19 @@ class DemoState:
             if self._client is None:
                 self._client = LLMClient(self.config)
             return self._client
+
+    def for_model(self, model: str):
+        """Cliente y configuración para ``model``. El del experimento usa los de siempre."""
+        if model == self.config.model:
+            return self.client, self.config
+        info = get_model(model)
+        inference = self.config.inference if info["reasoning"] else dataclasses.replace(
+            self.config.inference, reasoning_effort=None, include_reasoning=None)
+        config = dataclasses.replace(self.config, model=model, inference=inference)
+        with self._lock:
+            if model not in self._clients:
+                self._clients[model] = LLMClient(config)
+            return self._clients[model], config
 
     def mask(self, value):
         """Sustituye el canary en cualquier texto que salga hacia el navegador."""
@@ -122,6 +138,7 @@ class ChatRequest(BaseModel):
     condition: Literal["A", "B"]
     layers: Layers = Layers()
     preset_id: str | None = None
+    model: str | None = None
 
 
 class CompareRequest(BaseModel):
@@ -138,8 +155,17 @@ class OfflineRequest(BaseModel):
 # Lógica
 # --------------------------------------------------------------------------
 
-def _cost(tokens_in: int | None, tokens_out: int | None) -> float:
-    return ((tokens_in or 0) * PRICE_IN_PER_M + (tokens_out or 0) * PRICE_OUT_PER_M) / 1_000_000
+def _cost(tokens_in: int | None, tokens_out: int | None,
+          price_in: float | None = PRICE_IN_PER_M, price_out: float | None = PRICE_OUT_PER_M) -> float | None:
+    """USD de una llamada. ``None`` si el proveedor no publica el precio del modelo.
+
+    Sin tokens no hubo llamada (L3 la cortó): eso cuesta 0 con cualquier modelo.
+    """
+    if not tokens_in and not tokens_out:
+        return 0.0
+    if price_in is None or price_out is None:
+        return None
+    return ((tokens_in or 0) * price_in + (tokens_out or 0) * price_out) / 1_000_000
 
 
 def _preset_matches(state: DemoState, preset_id: str | None, text: str) -> str | None:
@@ -189,38 +215,45 @@ def _recorded(state: DemoState, preset_id: str, condition: str, reason: str) -> 
         "defense_trace": i["defense_trace"],
         "label": i["label"],
         "cost_usd": _cost(i["tokens_in"], i["tokens_out"]),
+        "model": state.snapshot["model"],
         "layers": {"l1": condition == "B", "l2": condition == "B", "l3": condition == "B",
                    "l4": condition == "B", "l5": condition == "B"},
     }
 
 
-def run_one(state: DemoState, text: str, condition: str, layers: Layers, preset_id: str | None) -> dict:
+def run_one(state: DemoState, text: str, condition: str, layers: Layers, preset_id: str | None,
+            model: str | None = None) -> dict:
+    model = model or state.config.model
+    info = get_model(model)
+    if info is None:
+        raise HTTPException(400, f"El modelo {model} no está entre los que ofrece la demo.")
     preset = _preset_matches(state, preset_id, text)
-    # Lo grabado solo representa a B con las cinco capas: con una capa apagada
-    # sería mentir sobre lo que se está viendo.
+    # Lo grabado solo representa a B con las cinco capas, y solo al modelo del
+    # experimento: en otro caso sería mentir sobre lo que se está viendo.
     todas = layers.l2 and layers.l3 and layers.l5
+    grabable = bool(preset) and model == state.config.model and (condition == "A" or todas)
 
     if state.offline:
-        if preset and (condition == "A" or todas):
+        if grabable:
             return state.mask(_recorded(state, preset, condition, "modo sin conexión"))
         raise HTTPException(503, "Modo sin conexión: solo están disponibles los prompts "
                                  "predefinidos, sin editar y con todas las capas activas.")
 
+    client, config = state.for_model(model)
     try:
         if condition == "A":
-            result = chatbot_a.respond(text, client=state.client, prompts=state.prompts,
-                                       config=state.config)
+            result = chatbot_a.respond(text, client=client, prompts=state.prompts, config=config)
             activas = dict.fromkeys(("l1", "l2", "l3", "l4", "l5"), False)
         else:
             prompts = state.prompts if layers.l2 else dataclasses.replace(state.prompts, l2_reminder="")
             result = chatbot_b.respond(
-                text, client=state.client, prompts=prompts, config=state.config,
+                text, client=client, prompts=prompts, config=config,
                 l3=None if layers.l3 else _L3Apagada, l5=None if layers.l5 else _L5Apagada,
             )
             activas = {"l1": True, "l2": layers.l2, "l3": layers.l3, "l4": True, "l5": layers.l5}
     except LLMCallError as exc:
         logger.warning("La API falló: %s", exc)
-        if preset and (condition == "A" or todas):
+        if grabable:
             return state.mask(_recorded(state, preset, condition, "la API no respondió"))
         raise HTTPException(502, f"La API no respondió ({exc}). Prueba un prompt predefinido: "
                                  "tienen respuesta grabada.") from exc
@@ -230,7 +263,8 @@ def run_one(state: DemoState, text: str, condition: str, layers: Layers, preset_
         "condition": condition,
         "source": "live",
         "label": _label(state, preset, result),
-        "cost_usd": _cost(result["tokens_in"], result["tokens_out"]),
+        "cost_usd": _cost(result["tokens_in"], result["tokens_out"], info["price_in"], info["price_out"]),
+        "model": model,
         "layers": activas,
     })
     return state.mask(salida)
@@ -279,6 +313,10 @@ def create_app(state: DemoState | None = None) -> FastAPI:
         s = st()
         return {"offline": s.offline, "has_key": s.has_key, "model": s.config.model}
 
+    @app.get("/api/models")
+    def models():
+        return {"default": st().config.model, "models": list(MODELS)}
+
     @app.post("/api/offline")
     def set_offline(req: OfflineRequest):
         s = st()
@@ -321,7 +359,8 @@ def create_app(state: DemoState | None = None) -> FastAPI:
 
     @app.post("/api/chat")
     async def chat(req: ChatRequest):
-        return await asyncio.to_thread(run_one, st(), req.text, req.condition, req.layers, req.preset_id)
+        return await asyncio.to_thread(run_one, st(), req.text, req.condition, req.layers, req.preset_id,
+                                       req.model)
 
     @app.post("/api/compare")
     async def compare(req: CompareRequest):

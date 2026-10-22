@@ -87,6 +87,19 @@ b { font-weight: 600; }
 .brand-name { font: 600 22px/1 var(--cond); letter-spacing: .01em; }
 .brand-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
+/* ---------------------------------------------------------- modelo */
+
+.model-pick { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.model-pick label { font-size: 13px; font-weight: 600; }
+.model-pick label .muted { font-weight: 400; }
+.model-pick select {
+  width: 100%; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;
+}
+.model-hint { font-size: 12px; line-height: 1.35; color: var(--muted); }
+.model-hint:empty { display: none; }
+.model-hint b { color: var(--review); font-weight: 600; }
+
 /* ---------------------------------------------------------- puntos */
 
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 12.5px; margin-top: 6px; }

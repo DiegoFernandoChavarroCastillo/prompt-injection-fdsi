@@ -158,6 +158,12 @@ python -m uvicorn demo.server:app --port 8000
   con la insignia «grabada». En ajustes (engranaje) hay un **modo sin conexión** que lo
   fuerza; sin `LLM_API_KEY` la demo arranca directamente en ese modo y el texto libre
   recibe una nota de Aura en lugar de un error.
+- **Selector de modelo de Groq** (columna izquierda, solo en vivo). Por defecto es
+  `openai/gpt-oss-120b`, el del experimento, que resiste casi todos los ataques por su
+  cuenta. Para que el contraste se vea, `allam-2-7b` es el más vulnerable de los que
+  ofrece Groq (7 de 20 ataques pasaron sin protección en un sondeo). Catálogo, precios y
+  sondeo en `demo/models.py`. Las cifras de la corrida y los puntos de las tarjetas siguen
+  siendo de `gpt-oss-120b`; las respuestas grabadas solo valen para ese modelo.
 - **Un turno, como el experimento.** Cada mensaje se envía solo; el historial del
   teléfono es solo visual. Si se edita el texto de un prompt, deja de tratarse como ese
   prompt de la batería.

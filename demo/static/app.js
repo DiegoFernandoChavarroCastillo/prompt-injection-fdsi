@@ -14,14 +14,16 @@ const state = {
   presets: [],
   offline: false,
   hasKey: false,
-  model: "",
+  model: "",                          // modelo elegido para chatear
+  defaultModel: "",                   // el del experimento
+  models: [],
   results: null,
   staged: null,                       // { id, payload } del último «Usar»
   sessions: { A: newSession(), B: newSession() },
 };
 
 function newSession() {
-  return { msgs: [], pending: false, sent: 0, cost: 0, passed: 0,
+  return { msgs: [], pending: false, sent: 0, cost: 0, unpriced: 0, passed: 0,
            offTokens: 0, offCost: 0, stopped: 0, incidents: [] };
 }
 
@@ -96,7 +98,7 @@ function md(text) {
 }
 
 const num = (x, d = 0) => x.toLocaleString("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d });
-const usd5 = (x) => `${num(x, 5)} USD`;
+const usd5 = (x) => (x == null ? "costo desconocido" : `${num(x, 5)} USD`);
 const perMillion = (x) => `${num(x * 1e6)} USD`;
 const tokensOf = (r) => (r.tokens_in || 0) + (r.tokens_out || 0);
 
@@ -227,13 +229,13 @@ function annotation(r) {
     const { layer, rule } = blockedText(r.blocked_by);
     const called = r.blocked_by.startsWith("L3")
       ? "el modelo no se llamó · 0 USD"
-      : `el modelo sí se llamó · ${usd5(r.cost_usd || 0)}`;
+      : `el modelo sí se llamó · ${usd5(r.cost_usd)}`;
     return `<p class="anno guard">Bloqueado por PromptX · ${esc(layer)} · ${esc(rule)} · ${called}</p>`;
   }
   if ((r.response || "").includes(CANARY))
-    return `<p class="anno harm">Filtró el secreto interno · ${usd5(r.cost_usd || 0)}</p>`;
+    return `<p class="anno harm">Filtró el secreto interno · ${usd5(r.cost_usd)}</p>`;
   if (r.label === "EXITO_TOTAL")
-    return `<p class="anno harm">El ataque funcionó · ${usd5(r.cost_usd || 0)}</p>`;
+    return `<p class="anno harm">El ataque funcionó · ${usd5(r.cost_usd)}</p>`;
   return "";
 }
 
@@ -244,7 +246,10 @@ function msgHTML(m) {
     return `<div class="msg note"><div class="bubble" role="status">${esc(m.text)}</div></div>`;
   const r = m.r;
   const rec = r.source === "recorded" ? `<span class="tag-rec" title="Respuesta grabada en la corrida definitiva">grabada</span>` : "";
-  return `<div class="msg aura"><div class="bubble"><span class="sr-only">Aura: </span>${md(r.response)}${rec}</div>${annotation(r)}</div>`;
+  // Si L3 bloqueó, el modelo no se llamó: no se etiqueta con su nombre.
+  const other = r.model && r.model !== state.defaultModel && !r.blocked_by?.startsWith("L3")
+    ? `<span class="tag-rec" title="Modelo que respondió">${esc(modelLabel(r.model))}</span>` : "";
+  return `<div class="msg aura"><div class="bubble"><span class="sr-only">Aura: </span>${md(r.response)}${rec}${other}</div>${annotation(r)}</div>`;
 }
 
 function renderChat() {
@@ -293,7 +298,7 @@ async function send() {
   autosize();
   s.msgs.push({ role: "user", text });
 
-  if (state.offline && !preset) {
+  if (state.offline && (!preset || state.model !== state.defaultModel)) {
     s.msgs.push({ role: "note", text: "Sin conexión: usa un prompt de la izquierda." });
     renderChat();
     return;
@@ -302,7 +307,7 @@ async function send() {
   s.pending = true;
   renderChat();
   try {
-    const body = { text, condition: cond };
+    const body = { text, condition: cond, model: state.model };
     if (preset) body.preset_id = preset.id;
     const r = await api("/api/chat", body);
     s.msgs.push({ role: "aura", r });
@@ -320,24 +325,27 @@ async function send() {
 
 function account(s, r, preset, cond) {
   s.sent += 1;
-  s.cost += r.cost_usd || 0;
+  if (r.cost_usd == null) s.unpriced += 1;
+  else s.cost += r.cost_usd;
   if (r.blocked_by?.startsWith("L3")) s.stopped += 1;
   const leaked = (r.response || "").includes(CANARY);
   if (r.label === "EXITO_TOTAL") {
     s.passed += 1;
     if (preset?.objective === "goal_hijacking") {
       s.offTokens += tokensOf(r);
-      s.offCost += r.cost_usd || 0;
+      if (r.cost_usd == null) s.offUnpriced = true;
+      else s.offCost += r.cost_usd;
     }
   }
   if (r.label === "EXITO_TOTAL" || leaked) {
     s.incidents.unshift({
       cond,
       title: preset ? preset.title : "Mensaje escrito a mano",
+      model: r.model && r.model !== state.defaultModel ? modelLabel(r.model) : "",
       consequence: leaked ? "Filtró el secreto interno al cliente."
                           : preset?.consequence || "El ataque consiguió lo que buscaba.",
       tokens: tokensOf(r),
-      cost: r.cost_usd || 0,
+      cost: r.cost_usd,
       when: new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false }),
     });
   }
@@ -349,12 +357,18 @@ function renderLedger() {
   for (const c of ["A", "B"]) {
     const s = state.sessions[c];
     $(`#m-sent-${c}`).textContent = num(s.sent);
-    $(`#m-cost-${c}`).innerHTML = `${usd5(s.cost)}<span class="sub">${
-      s.sent ? `≈ ${perMillion(s.cost / s.sent)} por millón de mensajes así` : "sin mensajes"}</span>`;
+    const priced = s.sent - s.unpriced;
+    const subs = [];
+    if (!s.sent) subs.push("sin mensajes");
+    if (priced) subs.push(`≈ ${perMillion(s.cost / priced)} por millón de mensajes así`);
+    if (s.unpriced) subs.push(`${num(s.unpriced)} sin precio publicado`);
+    const total = !priced && s.unpriced ? "desconocido" : usd5(s.cost);
+    $(`#m-cost-${c}`).innerHTML = `${total}<span class="sub">${subs.join(" · ")}</span>`;
     const pass = $(`#m-pass-${c}`);
     pass.textContent = num(s.passed);
     pass.className = s.passed ? "bad" : "";
-    $(`#m-off-${c}`).innerHTML = `${num(s.offTokens)}<span class="sub">${usd5(s.offCost)}</span>`;
+    $(`#m-off-${c}`).innerHTML = `${num(s.offTokens)}<span class="sub">${
+      s.offUnpriced ? "costo desconocido" : usd5(s.offCost)}</span>`;
     if (c === "B") {
       const stop = $("#m-stop-B");
       stop.innerHTML = `${num(s.stopped)}<span class="sub">costo 0 USD</span>`;
@@ -365,7 +379,7 @@ function renderLedger() {
   $("#incidents").innerHTML = inc.length ? inc.map((i) => `<li class="inc">
       <p class="inc-head">${esc(i.title)}</p>
       <p>${esc(i.consequence)}</p>
-      <p class="measured">${i.cond === "B" ? "Con PromptX · " : ""}${esc(i.when)} · ${num(i.tokens)} tokens · ${usd5(i.cost)}</p>
+      <p class="measured">${i.cond === "B" ? "Con PromptX · " : ""}${i.model ? esc(i.model) + " · " : ""}${esc(i.when)} · ${num(i.tokens)} tokens · ${usd5(i.cost)}</p>
     </li>`).join("")
     : `<li class="inc-empty">Sin incidentes. Cuando un ataque pase, aparece aquí lo que le cuesta al negocio.</li>`;
 }
@@ -379,6 +393,39 @@ function renderReference() {
   $("#m-ref-B").innerHTML = `${perMillion(c.B)}<span class="sub">por millón (+${extra}\u00a0%)</span>`;
 }
 
+// ---------------------------------------------------------------- modelo
+
+function modelLabel(id) {
+  return state.models.find((m) => m.id === id)?.label || id;
+}
+
+function renderModels() {
+  const sel = $("#model-select");
+  sel.innerHTML = state.models.map((m) =>
+    `<option value="${esc(m.id)}"${m.id === state.model ? " selected" : ""}>${esc(m.label)} · ${esc(m.note)}</option>`).join("");
+  // Sin conexión solo hay lo grabado, que es del modelo del experimento.
+  sel.disabled = state.offline;
+  const m = state.models.find((x) => x.id === state.model);
+  const hint = [];
+  if (state.offline) hint.push("Sin conexión solo está el modelo del experimento.");
+  else if (m && m.id !== state.defaultModel) {
+    hint.push("<b>Solo en vivo.</b> Los puntos y las cifras de la corrida definitiva son de GPT-OSS 120B.");
+    if (m.attack_rate != null)
+      hint.push(`En un sondeo de 20 ataques sin protección pasaron ${num(m.attack_rate * 20)}.`);
+    if (m.price_in == null) hint.push("Groq no publica su precio: el costo sale como desconocido.");
+  }
+  $("#model-hint").innerHTML = hint.join(" ");
+}
+
+function setModel(id) {
+  state.model = id;
+  // Cada modelo es otra comparación: se empieza de cero en los dos modos.
+  state.sessions = { A: newSession(), B: newSession() };
+  renderModels();
+  renderChat();
+  renderLedger();
+}
+
 // --------------------------------------------------------------- ajustes
 
 function renderConn() {
@@ -388,10 +435,13 @@ function renderConn() {
   const t = $("#offline-toggle");
   t.checked = state.offline;
   t.disabled = !state.hasKey;
+  if (state.offline && state.model !== state.defaultModel) setModel(state.defaultModel);
+  else renderModels();
   $("#api-status").innerHTML = `
     <dt>Estado</dt><dd>${state.offline ? "sin conexión · respuestas grabadas" : "en vivo · llama a la API"}</dd>
     <dt>LLM_API_KEY</dt><dd>${state.hasKey ? "configurada" : "no está en .env: solo modo sin conexión"}</dd>
-    <dt>Modelo</dt><dd>${esc(state.model || "—")}</dd>`;
+    <dt>Modelo</dt><dd>${esc(state.model || "—")}</dd>
+    <dt>Del experimento</dt><dd>${esc(state.defaultModel || "—")}</dd>`;
 }
 
 function tickClock() {
@@ -427,6 +477,7 @@ function wire() {
     }
   });
   $("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  $("#model-select").addEventListener("change", (e) => setModel(e.target.value));
   $("#open-settings").addEventListener("click", () => $("#settings").showModal());
   $("#offline-toggle").addEventListener("change", async (e) => {
     try {
@@ -445,8 +496,9 @@ async function boot() {
   renderMode(false);
   renderLedger();
   try {
-    const [st, presets] = await Promise.all([api("/api/status"), api("/api/presets")]);
-    Object.assign(state, { offline: st.offline, hasKey: st.has_key, model: st.model, presets });
+    const [st, presets, catalog] = await Promise.all([api("/api/status"), api("/api/presets"), api("/api/models")]);
+    Object.assign(state, { offline: st.offline, hasKey: st.has_key, model: catalog.default,
+                           defaultModel: catalog.default, models: catalog.models, presets });
     renderPresets();
     renderConn();
   } catch {

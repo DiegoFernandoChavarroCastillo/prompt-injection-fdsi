@@ -191,3 +191,46 @@ def test_la_pagina_versiona_sus_recursos_y_no_se_cachea(config):
     res = _client(config, FakeClient()).get("/")
     assert res.headers["cache-control"] == "no-cache"
     assert "/static/styles.css?v=" in res.text and "/static/app.js?v=" in res.text
+
+
+OTRO = "allam-2-7b"
+
+
+def test_otro_modelo_usa_su_propio_cliente_sin_parametros_de_razonamiento(config, payloads):
+    del_experimento, otro = FakeClient(), FakeClient()
+    state = DemoState(config, client=del_experimento)
+    state.has_key, state.offline = True, False
+    _, cfg = state.for_model(OTRO)
+    assert cfg.model == OTRO and cfg.inference.reasoning_effort is None
+    state._clients[OTRO] = otro
+    r = TestClient(create_app(state)).post("/api/chat", json={
+        "text": payloads["A03"], "condition": "A", "preset_id": "A03", "model": OTRO}).json()
+    assert r["model"] == OTRO and r["source"] == "live"
+    assert len(otro.calls) == 1 and del_experimento.calls == []
+
+
+def test_otro_modelo_no_cae_a_lo_grabado(config, payloads):
+    state = DemoState(config, client=FakeClient())
+    state.has_key, state.offline = True, False
+    state._clients[OTRO] = FakeClient(fail=True)
+    c = TestClient(create_app(state))
+    res = c.post("/api/chat", json={"text": payloads["A03"], "condition": "A", "preset_id": "A03", "model": OTRO})
+    assert res.status_code == 502
+    state.offline = True
+    res = c.post("/api/chat", json={"text": payloads["A03"], "condition": "A", "preset_id": "A03", "model": OTRO})
+    assert res.status_code == 503
+
+
+def test_un_modelo_fuera_del_catalogo_se_rechaza(config):
+    res = _client(config, FakeClient()).post("/api/chat", json={
+        "text": "hola", "condition": "A", "model": "modelo-inventado"})
+    assert res.status_code == 400
+
+
+def test_un_bloqueo_de_l3_cuesta_cero_aunque_el_modelo_no_tenga_precio(config, payloads):
+    state = DemoState(config, client=FakeClient())
+    state.has_key, state.offline = True, False
+    state._clients[OTRO] = FakeClient()
+    r = TestClient(create_app(state)).post("/api/chat", json={
+        "text": payloads["A03"], "condition": "B", "preset_id": "A03", "model": OTRO}).json()
+    assert r["blocked_by"].startswith("L3:") and r["cost_usd"] == 0
