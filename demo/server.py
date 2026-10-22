@@ -18,14 +18,15 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
 import json
 import logging
 import threading
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -357,10 +358,27 @@ def create_app(state: DemoState | None = None) -> FastAPI:
 
     @app.get("/")
     def index():
-        return FileResponse(STATIC_DIR / "index.html")
+        return HTMLResponse(_index_html())
+
+    @app.middleware("http")
+    async def sin_cache(request: Request, call_next):
+        # Sin esto el navegador reutiliza el CSS y el JS de una versión anterior
+        # de la demo junto con el HTML nuevo, y la página sale rota.
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     return app
+
+
+def _index_html() -> str:
+    """``index.html`` con la huella de cada recurso en su URL, para que nunca se mezclen versiones."""
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    for nombre in ("styles.css", "app.js"):
+        huella = hashlib.sha256((STATIC_DIR / nombre).read_bytes()).hexdigest()[:10]
+        html = html.replace(f"/static/{nombre}\"", f"/static/{nombre}?v={huella}\"")
+    return html
 
 
 def _safe_run(state: DemoState, text: str, condition: str, layers: Layers, preset_id: str | None) -> dict:

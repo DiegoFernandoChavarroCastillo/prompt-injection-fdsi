@@ -185,3 +185,9 @@ def test_los_presets_traen_lo_que_la_interfaz_necesita_para_agruparlos(config):
     # A03 rompe a A y L3 lo bloquea en B: es el caso con el que abre el guion.
     assert por_id["A03"]["recorded_labels"]["A"]["EXITO_TOTAL"] == 5
     assert por_id["A03"]["recorded_blocked_by"]["B"].startswith("L3:")
+
+
+def test_la_pagina_versiona_sus_recursos_y_no_se_cachea(config):
+    res = _client(config, FakeClient()).get("/")
+    assert res.headers["cache-control"] == "no-cache"
+    assert "/static/styles.css?v=" in res.text and "/static/app.js?v=" in res.text
