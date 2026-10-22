@@ -1,4 +1,4 @@
-"""Servidor local de la demo para el jurado: chat A/B, rayos X y resultados.
+"""Servidor local de la demo de PromptX para el jurado: chat A/B y costos.
 
 Solo IMPORTA el código del experimento (``src/``); no lo modifica. Las capas se
 apagan inyectando dobles por los parámetros ``l3``/``l5`` de
@@ -265,7 +265,7 @@ def _metrics_view(snapshot: dict) -> dict:
 # --------------------------------------------------------------------------
 
 def create_app(state: DemoState | None = None) -> FastAPI:
-    app = FastAPI(title="Demo — defensa en 5 capas", docs_url=None, redoc_url=None)
+    app = FastAPI(title="Demo — PromptX", docs_url=None, redoc_url=None)
     app.state.demo = state
 
     def st() -> DemoState:
@@ -299,7 +299,10 @@ def create_app(state: DemoState | None = None) -> FastAPI:
                 "category": getattr(item, "category", None),
                 "category_name": getattr(item, "category_name", None),
                 "technique": getattr(item, "technique", None),
+                "objective": getattr(item, "objective", None),
                 "recorded_labels": {c: grabada[c]["labels"] for c in ("A", "B")},
+                # L3 es determinista: la repetición grabada vale por las cinco.
+                "recorded_blocked_by": {c: grabada[c]["interaction"]["blocked_by"] for c in ("A", "B")},
             })
         return salida
 

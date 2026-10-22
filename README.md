@@ -130,10 +130,22 @@ con las corridas contaminaría el corpus del que salen el ASR y el FPR. Los dato
 
 ### Demo web para la presentación
 
-Una interfaz de chat para enseñar el sistema ante el jurado: selector **A sin defensas /
-B protegido**, caja de texto libre, los casos de la batería que marcan la diferencia,
-**Rayos X** de cada respuesta (qué capa actuó y por qué), comparación lado a lado,
-interruptores de L2, L3 y L5, y el panel con las cifras de la corrida definitiva.
+Una sola pantalla para que el jurado vea en segundos la diferencia entre un chatbot sin
+protección y uno protegido por **PromptX**, y que proteger cuesta poco frente a ser atacado.
+Tres zonas, sin scroll a 1366×768 ni a 1920×1080:
+
+- **Centro, un teléfono simulado** con la app de Seguros Colibrí y su asistente Aura. Arriba,
+  el selector **Sin protección | Con PromptX**. Cada modo guarda su propia conversación y el
+  halo del teléfono (rojizo o verde azulado) dice desde el fondo de la sala qué modo está
+  activo. Cuando PromptX bloquea, una anotación bajo la burbuja dice qué capa actuó y que
+  el modelo no se llamó (0 USD).
+- **Izquierda, los prompts de la batería**, agrupados con los resultados reales de la
+  corrida definitiva: los que rompen al chatbot sin protección, los que PromptX frena sin
+  gastar un token y los de clientes legítimos. «Usar» pone el texto en el teléfono sin
+  enviarlo; «Copiar» lo copia.
+- **Derecha, lo que cuesta**: mensajes, costo, ataques que pasaron, tokens pagados por
+  respuestas fuera del negocio y ataques detenidos antes del modelo, acumulados por modo,
+  más un registro de incidentes con la consecuencia de negocio de cada ataque que pasa.
 
 ```bash
 pip install -r requirements-demo.txt          # además de requirements.txt
@@ -141,12 +153,16 @@ python -m uvicorn demo.server:app --port 8000
 # abrir http://localhost:8000
 ```
 
-- **En vivo con respaldo.** Llama de verdad a Groq. Si la API o internet fallan, los casos
-  predefinidos responden con lo grabado en la corrida definitiva y lo indican con la
-  insignia «Grabada». En la configuración hay un **modo sin conexión** que lo fuerza; sin
-  `LLM_API_KEY` la demo arranca directamente en ese modo.
-- **Solo importa `src/`, no lo modifica.** Las capas se apagan inyectando dobles por los
-  parámetros de `chatbot_b.respond`. Igual que `try_chatbot.py`, **no escribe en `logs/`**.
+- **En vivo con respaldo.** Llama de verdad a Groq. Si la API o internet fallan, los
+  prompts de la izquierda responden con lo grabado en la corrida definitiva y lo indican
+  con la insignia «grabada». En ajustes (engranaje) hay un **modo sin conexión** que lo
+  fuerza; sin `LLM_API_KEY` la demo arranca directamente en ese modo y el texto libre
+  recibe una nota de Aura en lugar de un error.
+- **Un turno, como el experimento.** Cada mensaje se envía solo; el historial del
+  teléfono es solo visual. Si se edita el texto de un prompt, deja de tratarse como ese
+  prompt de la batería.
+- **Solo importa `src/`, no lo modifica.** Las cinco capas están activas en B. Igual que
+  `try_chatbot.py`, **no escribe en `logs/`**. No usa CDN: las fuentes son locales.
 - **Los datos grabados** están en `demo/data/snapshot.json`, que se versiona porque
   `logs/final/*.jsonl` no. Se regenera con `python demo/build_snapshot.py` si cambia el log
   (por ejemplo, al incorporar la revisión manual).

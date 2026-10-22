@@ -3,158 +3,164 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Escudo de 5 capas</title>
+  <title>PromptX · demo</title>
   <link rel="preload" href="/static/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/static/fonts/ibm-plex-sans-condensed-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/ibm-plex-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-  <header class="masthead">
-    <div class="wordmark">
-      <svg class="mark" viewBox="0 0 28 32" aria-hidden="true">
-        <path d="M14 1 1 6v9c0 7.6 5.4 13.9 13 16 7.6-2.1 13-8.4 13-16V6L14 1z" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M6 10h16M6 14h16M6 18h16M8 22h12M11 26h6" stroke="currentColor" stroke-width="1.6"/>
-      </svg>
-      <div>
-        <span class="wordmark-name" data-product-name>Escudo de 5 capas</span>
-        <span class="wordmark-meta">OWASP LLM01 · Seguros Colibrí</span>
-      </div>
-    </div>
-    <nav class="nav" role="tablist" aria-label="Secciones">
-      <button role="tab" class="nav-item" id="tab-btn-chat" data-tab="chat" aria-selected="true">Conversación</button>
-      <button role="tab" class="nav-item" id="tab-btn-compare" data-tab="compare" aria-selected="false">Comparar A y B</button>
-      <button role="tab" class="nav-item" id="tab-btn-results" data-tab="results" aria-selected="false">Resultados</button>
-    </nav>
-    <div class="masthead-end">
-      <span id="conn-badge" class="conn">conectando…</span>
-      <button id="open-settings" class="text-btn">Ajustes</button>
-    </div>
-  </header>
+  <div class="stage" id="stage" data-mode="A">
 
-  <main>
-    <!-- ======================== CONVERSACIÓN ======================== -->
-    <section id="tab-chat" class="view view-chat" role="tabpanel" aria-labelledby="tab-btn-chat">
-      <aside class="library" aria-label="Casos de la batería">
-        <div class="library-head">
-          <h2>Casos de prueba</h2>
-          <p>Mensajes reales de la batería. Las casillas son las 5 repeticiones de la corrida definitiva.</p>
-          <div class="cells-key">
-            <span><i class="cell hit"></i>el ataque funcionó</span>
-            <span><i class="cell doubt"></i>dudoso</span>
-            <span><i class="cell"></i>no funcionó</span>
-          </div>
+    <!-- ======================== IZQUIERDA: PROMPTS ======================== -->
+    <aside class="col col-left" aria-labelledby="prompts-title">
+      <header class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 28" aria-hidden="true">
+          <path d="M12 1 1 5.5v8c0 6.6 4.7 12.1 11 13.5 6.3-1.4 11-6.9 11-13.5v-8L12 1z" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="m7.5 13.5 3.2 3.2 6-6.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <p class="brand-name">PromptX</p>
+          <p class="brand-meta">Demo · chatbot de Seguros Colibrí</p>
         </div>
-        <div id="preset-list"></div>
-      </aside>
+      </header>
+      <div class="col-head">
+        <h2 id="prompts-title">Prompts de la batería</h2>
+        <p class="legend" aria-label="Leyenda de los puntos: cada punto es una de las 5 repeticiones de la corrida definitiva">
+          <span class="dot hit" aria-hidden="true"></span>funcionó
+          <span class="dot review" aria-hidden="true"></span>dudoso
+          <span class="dot miss" aria-hidden="true"></span>falló
+          <span class="dot ok" aria-hidden="true"></span>atendido
+        </p>
+      </div>
+      <div class="scroll" id="preset-groups">
+        <p class="muted pad">Cargando…</p>
+      </div>
+    </aside>
 
-      <div class="conversation">
-        <div class="conv-head">
-          <div class="persona">
-            <span class="persona-name">Aura</span>
-            <span class="persona-role">asistente de Seguros Colibrí</span>
-          </div>
-          <button id="shield-switch" class="shield-switch" role="switch" aria-checked="true">
-            <span class="switch-track"><span class="switch-knob"></span></span>
-            <span class="switch-text">
-              <span class="switch-title">Escudo activo</span>
-              <span class="switch-sub">versión B · 5 capas</span>
-            </span>
+    <!-- ======================== CENTRO: TELÉFONO ======================== -->
+    <main class="col col-center">
+      <div class="mode-bar">
+        <div class="segmented" role="group" aria-label="Versión del chatbot">
+          <button type="button" class="seg seg-a" data-mode="A" aria-pressed="true">Sin protección</button>
+          <button type="button" class="seg seg-b" data-mode="B" aria-pressed="false">
+            <svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1 1 5.5v8c0 6.6 4.7 12.1 11 13.5 6.3-1.4 11-6.9 11-13.5v-8L12 1z" fill="currentColor"/></svg>
+            Con PromptX
           </button>
-          <button id="clear-chat" class="text-btn">Vaciar</button>
         </div>
-        <div id="mode-band" class="mode-band" hidden>
-          Sin protección: el mensaje del cliente se pega a las instrucciones y lo que decida el modelo llega al cliente.
-        </div>
-        <div id="layers-band" class="mode-band warn" hidden></div>
-        <div id="messages" class="messages" aria-live="polite"></div>
-        <form id="composer" class="composer">
-          <label for="input" class="visually-hidden">Mensaje para Aura</label>
-          <textarea id="input" rows="2" placeholder="Escribe como un cliente, o intenta engañar a Aura" maxlength="4000"></textarea>
-          <button type="submit" class="primary-btn" id="send">Enviar</button>
-          <p class="composer-hint">Enter envía · Shift + Enter cambia de línea · cada mensaje se evalúa por separado, como en el experimento</p>
-        </form>
+        <button type="button" class="ghost-btn" id="reset-chat" title="Borra solo la conversación del modo activo">Nueva conversación</button>
       </div>
+      <p class="sr-only" id="mode-announcer" aria-live="polite"></p>
 
-      <aside class="inspector" id="inspector" aria-label="Inspección de la respuesta">
-        <div class="inspector-empty">
-          <h2>Inspección</h2>
-          <p>Selecciona una respuesta para ver por qué capas pasó el mensaje y cuál actuó.</p>
-        </div>
-      </aside>
-    </section>
+      <div class="phone-wrap">
+        <div class="phone" id="phone" role="region" aria-label="Teléfono simulado: modo sin protección">
+          <div class="phone-screen">
+            <div class="statusbar" aria-hidden="true">
+              <span class="clock" id="clock">9:41</span>
+              <span class="island"></span>
+              <span class="status-icons">
+                <svg viewBox="0 0 18 12" class="signal"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+                <svg viewBox="0 0 27 13" class="battery"><rect x="0.6" y="0.6" width="22.8" height="11.8" rx="3.4" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="1.2"/><rect x="2.4" y="2.4" width="16" height="8.2" rx="2"/><path d="M25 4.4v4.2c.9-.3 1.5-1.2 1.5-2.1s-.6-1.8-1.5-2.1z" fill-opacity=".45"/></svg>
+              </span>
+            </div>
 
-    <!-- ========================== COMPARAR ========================== -->
-    <section id="tab-compare" class="view view-compare" role="tabpanel" aria-labelledby="tab-btn-compare" hidden>
-      <div class="compare-wrap">
-        <div class="compare-top">
-          <h2>El mismo mensaje, las dos versiones</h2>
-          <p>Mismo modelo, mismos parámetros, misma tarea. Solo cambia la protección.</p>
-          <div class="case-chips" id="compare-chips"></div>
-          <form id="compare-form" class="composer composer-compare">
-            <label for="compare-text" class="visually-hidden">Mensaje para comparar</label>
-            <textarea id="compare-text" rows="3" placeholder="Escribe un mensaje o elige un caso" maxlength="4000"></textarea>
-            <button type="submit" class="primary-btn">Enviar a las dos</button>
-          </form>
-        </div>
-        <p id="compare-verdict" class="compare-verdict" hidden></p>
-        <div class="compare-cols">
-          <div class="compare-col" data-cond="A">
-            <h3 class="col-title"><span class="code">A</span> Sin protección</h3>
-            <div id="compare-A" class="col-body"><p class="placeholder">La respuesta aparecerá aquí.</p></div>
-          </div>
-          <div class="compare-col" data-cond="B">
-            <h3 class="col-title"><span class="code">B</span> Escudo activo</h3>
-            <div id="compare-B" class="col-body"><p class="placeholder">La respuesta aparecerá aquí.</p></div>
+            <header class="app-head">
+              <div class="avatar" aria-hidden="true">A</div>
+              <div class="app-who">
+                <p class="app-brand">Seguros Colibrí</p>
+                <p class="app-name">Aura <span class="app-sub">· asistente virtual · <span class="online">en línea</span></span></p>
+              </div>
+              <span class="shield-badge" id="shield-badge" hidden>
+                <svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 1 1 5.5v8c0 6.6 4.7 12.1 11 13.5 6.3-1.4 11-6.9 11-13.5v-8L12 1z" fill="currentColor"/></svg>
+                Protegido por PromptX
+              </span>
+            </header>
+
+            <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Conversación con Aura"></div>
+
+            <form class="composer" id="composer">
+              <label class="sr-only" for="input">Mensaje para Aura</label>
+              <textarea id="input" rows="1" maxlength="4000" placeholder="Escribe un mensaje…"></textarea>
+              <button type="submit" class="send" id="send" aria-label="Enviar">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12 20 4l-4 16-4.5-6.5L4 12z" fill="currentColor"/></svg>
+              </button>
+            </form>
+            <div class="home-bar" aria-hidden="true"></div>
           </div>
         </div>
       </div>
-    </section>
+    </main>
 
-    <!-- ========================= RESULTADOS ========================= -->
-    <section id="tab-results" class="view view-results" role="tabpanel" aria-labelledby="tab-btn-results" hidden>
-      <div class="report" id="results"><p class="placeholder">Cargando resultados…</p></div>
-    </section>
-  </main>
+    <!-- ======================== DERECHA: COSTOS ======================== -->
+    <aside class="col col-right" aria-labelledby="cost-title">
+      <div class="col-head row">
+        <h2 id="cost-title">Lo que cuesta</h2>
+        <span class="conn" id="conn">…</span>
+        <button type="button" class="icon-btn" id="open-settings" aria-label="Ajustes" title="Ajustes">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.7 7.7 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+        </button>
+      </div>
 
-  <!-- =========================== AJUSTES =========================== -->
-  <div id="drawer-backdrop" class="backdrop" hidden></div>
-  <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Ajustes">
-    <div class="drawer-head">
-      <h2>Ajustes</h2>
-      <button id="close-settings" class="text-btn">Cerrar</button>
-    </div>
-    <div class="drawer-body">
-      <section>
-        <h3>Capas de la versión B</h3>
-        <p class="note">Apaga una capa para ver qué pasa sin ella. Solo afecta a B.</p>
-        <ul class="layer-list">
-          <li class="layer fixed"><span class="code">L1</span><span class="layer-text"><b>Delimitación estructural</b>Instrucciones y cliente en mensajes separados, entre marcas. Es la estructura de B, siempre activa.</span><span class="fixed-tag">fija</span></li>
-          <li class="layer"><span class="code">L2</span><label class="layer-text" for="layer-l2"><b>Recordatorio en sándwich</b>Repite las reglas después del mensaje del cliente.</label><input type="checkbox" class="toggle" id="layer-l2" data-layer="l2" checked></li>
-          <li class="layer"><span class="code">L3</span><label class="layer-text" for="layer-l3"><b>Filtro de entrada</b>Reconoce patrones de ataque, también en Base64 y ROT13, antes de llamar al modelo.</label><input type="checkbox" class="toggle" id="layer-l3" data-layer="l3" checked></li>
-          <li class="layer fixed"><span class="code">L4</span><span class="layer-text"><b>Anti-fuga</b>Reglas de confidencialidad dentro del prompt de sistema. Siempre activa.</span><span class="fixed-tag">fija</span></li>
-          <li class="layer"><span class="code">L5</span><label class="layer-text" for="layer-l5"><b>Validación de salida</b>Revisa la respuesta antes de entregarla: secreto, marcas internas, fragmentos del prompt.</label><input type="checkbox" class="toggle" id="layer-l5" data-layer="l5" checked></li>
-        </ul>
-      </section>
-      <section>
-        <h3>Conexión</h3>
-        <div class="layer">
-          <label class="layer-text" for="offline-toggle"><b>Modo sin conexión</b>Responde con lo grabado en la corrida definitiva. Úsalo si falla internet en la sala.</label>
-          <input type="checkbox" class="toggle" id="offline-toggle">
+      <div class="ledger" id="ledger">
+        <div class="ledger-head" aria-hidden="true"><span data-col="A">Sin protección</span><span data-col="B">Con PromptX</span></div>
+        <div class="metric">
+          <p class="metric-name">Mensajes enviados</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-sent-A">0</span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-sent-B">0</span></p>
         </div>
+        <div class="metric">
+          <p class="metric-name">Costo total de la sesión</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-cost-A"></span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-cost-B"></span></p>
+        </div>
+        <div class="metric">
+          <p class="metric-name">Ataques que pasaron</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-pass-A">0</span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-pass-B">0</span></p>
+        </div>
+        <div class="metric">
+          <p class="metric-name">Tokens pagados por respuestas fuera del negocio</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-off-A">0</span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-off-B">0</span></p>
+        </div>
+        <div class="metric">
+          <p class="metric-name">Detenidos antes de llamar al modelo</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-stop-A"><span class="muted">no tiene filtro</span></span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-stop-B">0</span></p>
+        </div>
+        <div class="metric ref">
+          <p class="metric-name">Consulta legítima en la corrida definitiva</p>
+          <p class="metric-val" data-col="A"><span class="sr-only">Sin protección: </span><span id="m-ref-A">—</span></p>
+          <p class="metric-val" data-col="B"><span class="sr-only">Con PromptX: </span><span id="m-ref-B">—</span></p>
+        </div>
+      </div>
+
+      <section class="incidents" aria-labelledby="inc-title">
+        <h3 id="inc-title">Registro de incidentes</h3>
+        <ol class="scroll inc-list" id="incidents" aria-live="polite"></ol>
       </section>
-      <section>
-        <h3>Modelo</h3>
-        <dl id="model-info" class="kv"></dl>
-      </section>
-      <section>
-        <h3>Prompts de sistema</h3>
-        <details class="prompt-box"><summary>Versión A completa</summary><pre id="sys-a"></pre></details>
-        <details class="prompt-box"><summary>Lo que B añade sobre A</summary><pre id="sys-b-added"></pre></details>
-        <details class="prompt-box"><summary>Recordatorio de L2</summary><pre id="sys-l2"></pre></details>
-        <p class="note">B es A más bloques de defensa. Nada más cambia.</p>
-      </section>
-    </div>
-  </aside>
+
+      <footer class="facts">
+        <p>Corrida definitiva: sin protección pasaron <b>9 a 15 de 100</b> ataques; con PromptX, <b>0 de 100</b>. 0 consultas legítimas bloqueadas.</p>
+        <p>Proteger cuesta <b>≈ +70 USD por millón de mensajes</b>.</p>
+        <p>Ser atacado: un chatbot «vendió» una camioneta de 76 000 USD por 1 USD (2023); un tribunal hizo responsable a Air Canada por lo que dijo el suyo (2024).</p>
+      </footer>
+    </aside>
+  </div>
+
+  <!-- ======================== AJUSTES ======================== -->
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form method="dialog" class="dlg">
+      <div class="dlg-head">
+        <h2 id="settings-title">Ajustes</h2>
+        <button class="ghost-btn" value="close">Cerrar</button>
+      </div>
+      <label class="switch-row" for="offline-toggle">
+        <span><b>Modo sin conexión</b><span class="muted">Responde con lo grabado en la corrida definitiva. Solo funcionan los prompts de la izquierda.</span></span>
+        <input type="checkbox" class="switch" id="offline-toggle">
+      </label>
+      <dl class="kv" id="api-status"></dl>
+    </form>
+  </dialog>
 
   <script src="/static/app.js"></script>
 </body>

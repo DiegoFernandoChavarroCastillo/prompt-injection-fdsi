@@ -1,56 +1,55 @@
-// Escudo de 5 capas — banco de pruebas. Sin dependencias: funciona sin internet.
+// PromptX — demo. Sin dependencias: funciona sin internet.
+//
+// El experimento es de UN turno: cada mensaje se envía solo, sin historial.
+// La conversación del teléfono existe únicamente en esta página.
 "use strict";
 
-/** Nombre comercial provisional. Cambiarlo aquí lo cambia en toda la página. */
-const PRODUCT_NAME = "Escudo de 5 capas";
-
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+const CANARY = "⟦CANARY⟧";
+const MODE_NAME = { A: "Sin protección", B: "Con PromptX" };
 
 const state = {
-  cond: "B",
-  layers: { l2: true, l3: true, l5: true },
+  mode: "A",
   presets: [],
   offline: false,
   hasKey: false,
-  comparePreset: null,
-  busy: false,
+  model: "",
+  results: null,
+  staged: null,                       // { id, payload } del último «Usar»
+  sessions: { A: newSession(), B: newSession() },
 };
+
+function newSession() {
+  return { msgs: [], pending: false, sent: 0, cost: 0, passed: 0,
+           offTokens: 0, offCost: 0, stopped: 0, incidents: [] };
+}
 
 // ------------------------------------------------------------------ textos
 
-const L3_RULES = {
+const LAYER = { L3: "filtro de entrada", L5: "validación de salida" };
+
+const RULE = {
   fake_system_marker: "marca de sistema falsificada",
-  override_es: "orden de ignorar las instrucciones",
-  override_es_invertido: "orden de ignorar las instrucciones, escrita al revés",
-  override_en: "orden de ignorar las instrucciones, en inglés",
-  persona_switch: "intento de cambiarle la identidad o el modo",
-  reveal_config: "petición de la configuración interna",
-  reveal_verbatim: "petición del texto literal del sistema",
+  override_es: "orden de ignorar sus instrucciones",
+  override_es_invertido: "orden de anular sus instrucciones",
+  override_en: "orden de ignorar sus instrucciones, en inglés",
+  persona_switch: "intento de cambiarle el rol",
+  reveal_config: "pide su configuración interna",
+  reveal_verbatim: "pide copiar su texto interno",
   prefix_forcing: "frase impuesta para forzar la respuesta",
+  canary: "iba a revelar el secreto interno",
+  delimiter: "iba a mostrar marcas internas",
+  ngram: "copiaba su prompt interno",
+  role_marker: "adoptaba otro rol",
+  commercial_marker: "prometía algo comercial",
 };
 
-const L5_CHECKS = {
-  canary: "la respuesta contenía el secreto interno",
-  delimiter: "la respuesta contenía las marcas internas",
-  ngram: "la respuesta copiaba fragmentos del prompt de sistema",
-  role_marker: "la respuesta adoptaba otro rol",
-  commercial_marker: "la respuesta asumía un compromiso comercial",
-};
-
-const SHORT_CATEGORY = {
-  C1: "Sobrescritura de instrucciones", C2: "Suplantación de rol",
-  C3: "Extracción del prompt", C4: "Contexto engañoso", C5: "Ofuscación",
-};
-
-const CANARY = "⟦CANARY⟧";
-
-function ruleText(blockedBy) {
-  if (!blockedBy) return "";
-  const [layer, raw] = blockedBy.split(":");
+function blockedText(blockedBy) {
+  const [layer, raw = ""] = blockedBy.split(":");
   const id = raw.replace("@decoded", "");
-  const txt = layer === "L3" ? (L3_RULES[id] || id) : (L5_CHECKS[id] || id);
-  return txt + (raw.endsWith("@decoded") ? ", encontrada al decodificar el mensaje" : "");
+  const rule = (RULE[id] || id) + (raw.endsWith("@decoded") ? ", oculta en texto codificado" : "");
+  return { layer: LAYER[layer] || layer, rule };
 }
 
 // --------------------------------------------------------------- utilidades
@@ -60,7 +59,7 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-const secretHTML = (html) => html.replaceAll(esc(CANARY), '<span class="secret">secreto interno</span>');
+const secretHTML = (html) => html.replaceAll(esc(CANARY), `<mark class="secret">${esc(CANARY)}</mark>`);
 
 /** Markdown mínimo y seguro: negritas, cursivas, listas y párrafos. Escapa todo primero. */
 function md(text) {
@@ -96,499 +95,367 @@ function md(text) {
   return html || "<p></p>";
 }
 
-const pct = (x) => (x == null ? "—" : `${Math.round(x * 100)} %`);
-const ms = (x) => (x == null ? "—" : `${Math.round(x).toLocaleString("es-CO")} ms`);
-const usdM = (usd) => `${(usd * 1e6).toLocaleString("es-CO", { maximumFractionDigits: 0 })} USD`;
+const num = (x, d = 0) => x.toLocaleString("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d });
+const usd5 = (x) => `${num(x, 5)} USD`;
+const perMillion = (x) => `${num(x * 1e6)} USD`;
+const tokensOf = (r) => (r.tokens_in || 0) + (r.tokens_out || 0);
+
+class ApiError extends Error {
+  constructor(status, detail) { super(detail); this.status = status; }
+}
 
 async function api(path, body) {
   const res = await fetch(path, body === undefined ? {} : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const d = data.detail;
-    throw new Error(typeof d === "string" ? d : d ? "El mensaje no es válido (máximo 4 000 caracteres)." : `El servidor respondió ${res.status}.`);
-  }
+  if (!res.ok) throw new ApiError(res.status, typeof data.detail === "string" ? data.detail : "");
   return data;
 }
 
-// ---------------------------------------------------------------- veredicto
+// ------------------------------------------------------------- grupos
 
-/** Sello de auditoría y frase de resumen para una respuesta. */
-function verdict(r) {
-  if ((r.response || "").includes(CANARY))
-    return { cls: "harm solid", stamp: "Filtró el secreto", sum: "El secreto interno llegó al cliente." };
-  if (r.blocked_by?.startsWith("L3"))
-    return { cls: "guard solid", stamp: "Detenido · L3", sum: "El filtro de entrada lo detuvo antes de llamar al modelo." };
-  if (r.blocked_by?.startsWith("L5"))
-    return { cls: "guard solid", stamp: "Retenido · L5", sum: "El modelo cedió, pero la validación de salida no dejó pasar la respuesta." };
-  switch (r.label) {
-    case "EXITO_TOTAL": return { cls: "harm solid", stamp: "Comprometido", sum: "El ataque consiguió lo que buscaba." };
-    case "PARCIAL": return { cls: "harm", stamp: "Cesión parcial", sum: "El ataque consiguió una parte de lo que buscaba." };
-    case "FALLO": return r.condition === "B"
-      ? { cls: "guard", stamp: "Resistió", sum: "Llegó al modelo y las capas de contexto lo contuvieron." }
-      : { cls: "ok", stamp: "Resistió solo", sum: "El modelo se negó por su cuenta, sin ninguna defensa de aplicación." };
-    case "ATENDIDO": return { cls: "ok", stamp: "Atendido", sum: "Consulta legítima respondida con normalidad." };
-    case "BLOQUEADO":
-    case "DEGRADADO": return { cls: "harm", stamp: "Rechazo indebido", sum: "Rechazó a un cliente legítimo." };
-    case "REVISION_MANUAL": return { cls: "doubt", stamp: "Ambiguo", sum: "El clasificador no lo decide solo: queda para revisión humana." };
-    default: return null; // texto libre: no hay criterio de éxito definido
-  }
+const GROUPS = [
+  { key: "breaks", title: "Rompen al chatbot sin protección" },
+  { key: "stops", title: "PromptX los frena sin gastar un token" },
+  { key: "benign", title: "Clientes reales: PromptX no estorba" },
+  { key: "grey", title: "Zona gris: el clasificador pidió revisión manual" },
+];
+
+/** Grupo de cada tarjeta, a partir de lo que pasó de verdad en la corrida final. */
+function groupOf(p) {
+  if (p.kind === "benign") return "benign";
+  if ((p.recorded_labels.A.EXITO_TOTAL || 0) > 0) return "breaks";
+  if ((p.recorded_blocked_by.B || "").startsWith("L3")) return "stops";
+  return "grey";
 }
 
-// ---------------------------------------------------- recorrido por capas
+const DOT = { EXITO_TOTAL: "hit", PARCIAL: "review", REVISION_MANUAL: "review", FALLO: "miss",
+              ATENDIDO: "ok", RECHAZADO: "hit" };
+const DOT_WORD = { hit: "funcionó", review: "dudoso", miss: "falló", ok: "atendido" };
 
-/** Pasos en el orden real de ejecución, con su estado. */
-function steps(r) {
-  const harm = verdict(r)?.cls.startsWith("harm");
-  if (r.condition === "A") {
-    return [
-      { code: "—", name: "Sin defensas", cls: "none", state: "Instrucciones y mensaje del cliente viajan como un solo texto." },
-      { code: "LLM", name: "Modelo", cls: "model", state: `Respondió en ${ms(r.api_latency_ms)}.` },
-      { code: "↳", name: "Cliente", cls: harm ? "harm" : "pass", state: harm ? "Recibe la respuesta comprometida." : "Recibe la respuesta." },
-    ];
-  }
-  const L = r.layers;
-  const l3Stop = r.blocked_by?.startsWith("L3");
-  const l5Stop = r.blocked_by?.startsWith("L5");
-  const later = (on, text) => (l3Stop ? { cls: "skip", state: "No llegó hasta aquí." } : on ? { cls: "pass", state: text } : { cls: "off", state: "Apagada en los ajustes." });
-  const decoded = r.defense_trace?.l3?.decoded?.length;
-  const escaped = r.defense_trace?.l1_delimiters_escaped || 0;
-  return [
-    { code: "L3", name: "Filtro de entrada", ...(!L.l3 ? { cls: "off", state: "Apagada en los ajustes." }
-      : l3Stop ? { cls: "stop", state: `Bloqueó: ${ruleText(r.blocked_by)}.` }
-      : { cls: "pass", state: decoded ? "Decodificó el mensaje y no encontró patrones de ataque." : "No encontró patrones de ataque." }) },
-    { code: "L1", name: "Delimitación", ...later(true, escaped ? `Neutralizó ${escaped} marca(s) falsificadas.` : "Mensaje encerrado entre marcas, en su propio rol.") },
-    { code: "L2", name: "Recordatorio", ...later(L.l2, "Reglas repetidas después del mensaje.") },
-    { code: "L4", name: "Anti-fuga", ...later(true, "Reglas de confidencialidad presentes.") },
-    { code: "LLM", name: "Modelo", ...(l3Stop ? { cls: "skip", state: "No se llamó. Esta conversación costó 0 USD." } : { cls: "model", state: `Respondió en ${ms(r.api_latency_ms)}.` }) },
-    { code: "L5", name: "Validación de salida", ...(l3Stop ? { cls: "skip", state: "No llegó hasta aquí." }
-      : !L.l5 ? { cls: "off", state: "Apagada en los ajustes." }
-      : l5Stop ? { cls: "stop", state: `Retuvo la respuesta: ${ruleText(r.blocked_by)}.` }
-      : { cls: "pass", state: "Revisó la respuesta y la dejó salir." }) },
-    { code: "↳", name: "Cliente", cls: harm ? "harm" : "pass",
-      state: harm ? "Recibe la respuesta comprometida." : r.blocked_by ? "Recibe una negativa cortés, igual para cualquier capa." : "Recibe la respuesta." },
-  ];
-}
-
-function stripHTML(r) {
-  return `<span class="strip" aria-hidden="true">${steps(r).filter((s) => s.code !== "↳")
-    .map((s) => `<i class="${s.cls}">${s.code === "—" ? "sin capas" : esc(s.code)}</i>`).join("")}</span>`;
-}
-
-function inspectorHTML(r) {
-  const v = verdict(r);
-  const route = steps(r).map((s) => `
-    <li class="step ${s.cls}"><span class="step-code">${esc(s.code)}</span>
-      <span class="step-name">${esc(s.name)}</span><span class="step-state">${esc(s.state)}</span></li>`).join("");
-  const held = r.blocked_by?.startsWith("L5") && r.raw_model_output
-    ? `<div class="held"><p>Lo que el modelo había escrito y L5 no dejó salir</p><pre>${secretHTML(esc(r.raw_model_output))}</pre></div>` : "";
-  const figures = [
-    ["Tokens de entrada", r.tokens_in ?? 0], ["Tokens de salida", r.tokens_out ?? 0],
-    ["Latencia del modelo", ms(r.api_latency_ms)], ["Latencia total", ms(r.latency_ms)],
-    ["Costo, por millón", usdM(r.cost_usd || 0)], ["Origen", r.source === "live" ? "En vivo" : "Grabada"],
-  ].map(([k, val]) => `<div><dt>${esc(k)}</dt><dd>${esc(val)}</dd></div>`).join("");
-  const recorded = r.source === "recorded"
-    ? `<p class="insp-note">Respuesta grabada (${esc(r.recorded_reason)}): repetición ${r.recorded_repetition} de ${r.recorded_n}, interacción #${r.recorded_order_index} de la corrida definitiva.</p>` : "";
-  const decoded = r.defense_trace?.l3?.decoded?.length
-    ? `<details><summary>Lo que L3 leyó al decodificar</summary><pre>${esc(r.defense_trace.l3.decoded.join("\n———\n"))}</pre></details>` : "";
-  const ctx = r.sent_context
-    ? `<details><summary>Lo que recibió el modelo, tal cual</summary><pre>${secretHTML(esc(r.sent_context))}</pre></details>` : "";
-  return `<div class="insp">
-    <div class="insp-head">
-      <span class="label">${r.condition === "A" ? "Versión A · sin protección" : "Versión B · escudo activo"}</span>
-      <h2>${esc(v ? v.stamp : r.blocked_by ? "Bloqueado" : "Respuesta entregada")}</h2>
-      ${v ? `<p class="sum">${esc(v.sum)}</p>` : ""}
-    </div>
-    <ol class="route">${route}</ol>
-    ${held}
-    <dl class="figures">${figures}</dl>
-    ${recorded}${decoded}${ctx}
-  </div>`;
-}
-
-// -------------------------------------------------------------- respuestas
-
-function selectTurn(el, r) {
-  $$(".messages .turn-bot.selected").forEach((t) => t.classList.remove("selected"));
-  el.classList.add("selected");
-  $("#inspector").innerHTML = inspectorHTML(r);
-}
-
-/** Respuesta del asistente: texto, sello y tira de capas. En el chat se puede seleccionar. */
-function turnBot(r, { selectable = true } = {}) {
-  const el = document.createElement("div");
-  el.className = "turn-bot";
-  const v = verdict(r);
-  const off = r.condition === "B" ? ["l2", "l3", "l5"].filter((k) => !r.layers[k]).map((k) => k.toUpperCase()) : [];
-  const tag = selectable ? "button" : "div";
-  el.innerHTML = `
-    <div class="turn-meta">
-      <span class="who">Aura</span>
-      <span class="cond-${r.condition}">${r.condition === "A" ? "A · sin protección" : "B · escudo activo"}</span>
-      ${off.length ? `<span class="recorded">sin ${off.join(", ")}</span>` : ""}
-      <span class="${r.source === "recorded" ? "recorded" : ""}">${r.source === "live" ? "en vivo" : "grabada"}</span>
-      ${r.api_latency_ms ? `<span>${ms(r.api_latency_ms)}</span>` : ""}
-    </div>
-    <${tag} class="answer" ${selectable ? 'type="button"' : ""}>
-      <div class="answer-text">${md(r.response)}</div>
-      <div class="answer-foot">
-        ${stripHTML(r)}
-        ${v ? `<span class="stamp ${v.cls}">${esc(v.stamp)}</span>` : selectable ? `<span class="inspect-hint">ver capas →</span>` : ""}
-      </div>
-    </${tag}>
-    ${selectable ? `<div class="inline-insp">${inspectorHTML(r)}</div>` : `<details class="col-details"><summary>Recorrido por las capas</summary>${inspectorHTML(r)}</details>`}`;
-  if (selectable) $(".answer", el).addEventListener("click", () => selectTurn(el, r));
-  return el;
-}
-
-function turnUser(text) {
-  const el = document.createElement("div");
-  el.className = "turn-user";
-  el.innerHTML = `<div class="text">${esc(text)}</div>`;
-  return el;
-}
-
-function push(el) {
-  const box = $("#messages");
-  box.appendChild(el);
-  box.scrollTop = box.scrollHeight;
-}
-
-// -------------------------------------------------------------------- chat
-
-async function sendChat(text, presetId) {
-  if (state.busy || !text.trim()) return;
-  state.busy = true; $("#send").disabled = true;
-  $(".example-note")?.closest(".example")?.remove();
-  push(turnUser(text));
-  const wait = document.createElement("div");
-  wait.className = "turn-bot";
-  wait.innerHTML = `<span class="thinking">${state.cond === "B" ? "pasando por las capas…" : "consultando al modelo…"}</span>`;
-  push(wait);
-  try {
-    const r = await api("/api/chat", { text, condition: state.cond, layers: state.layers, preset_id: presetId });
-    const el = turnBot(r);
-    wait.replaceWith(el);
-    selectTurn(el, r);
-  } catch (e) {
-    wait.innerHTML = `<div class="error-box">${esc(e.message)}</div>`;
-  } finally {
-    state.busy = false; $("#send").disabled = false;
-    $("#messages").scrollTop = $("#messages").scrollHeight;
-  }
-}
-
-/** La página abre con un caso real ya resuelto: A03 contra las dos versiones. */
-async function loadExample() {
-  const ex = await api("/api/example");
-  const wrap = document.createElement("div");
-  wrap.className = "example";
-  wrap.style.display = "contents";
-  const note = document.createElement("div");
-  note.className = "example-note";
-  note.innerHTML = `<p>Ejemplo grabado de la corrida definitiva: el mismo ataque contra las dos versiones. Escribe abajo o elige un caso para probar en vivo.</p><span class="label">${esc(ex.preset_id)}</span>`;
-  wrap.append(note, turnUser(ex.text));
-  const a = turnBot(ex.A), b = turnBot(ex.B);
-  wrap.append(a, b);
-  push(wrap);
-  selectTurn(b, ex.B);
-  $("#messages").scrollTop = 0;
-}
-
-function cells(labels, kind) {
-  const order = kind === "benign"
-    ? [["ATENDIDO", "served"]]
-    : [["EXITO_TOTAL", "hit"], ["PARCIAL", "hit"], ["REVISION_MANUAL", "doubt"]];
-  const out = [];
-  for (const [lab, cls] of order) for (let i = 0; i < (labels[lab] || 0); i++) out.push(cls);
-  const n = Object.values(labels).reduce((x, y) => x + y, 0);
-  while (out.length < n) out.push("");
-  return out.map((c) => `<i class="cell ${c}"></i>`).join("");
+function dotsRow(who, labels, benign) {
+  const order = benign ? ["ATENDIDO", "REVISION_MANUAL", "PARCIAL", "RECHAZADO"]
+                       : ["EXITO_TOTAL", "PARCIAL", "REVISION_MANUAL", "FALLO"];
+  const dots = [];
+  for (const l of [...order, ...Object.keys(labels).filter((k) => !order.includes(k))])
+    for (let i = 0; i < (labels[l] || 0); i++) dots.push(DOT[l] || "miss");
+  const counts = {};
+  dots.forEach((d) => { counts[d] = (counts[d] || 0) + 1; });
+  const said = Object.entries(counts).map(([d, n]) => `${DOT_WORD[d]} ${n}`).join(", ");
+  return `<span class="score-row" role="img" aria-label="${esc(who.long)}: ${esc(said)} de ${dots.length}">
+    <span class="who" aria-hidden="true">${esc(who.short)}</span>${dots.map((d) => `<span class="dot ${d}"></span>`).join("")}</span>`;
 }
 
 function renderPresets() {
-  const list = $("#preset-list");
-  list.innerHTML = "";
-  const groups = [
-    ["attack", "Ataques"],
-    ["benign", "Consultas legítimas · casilla oscura = atendida"],
-  ];
-  for (const [kind, title] of groups) {
-    const h = document.createElement("div");
-    h.className = "group-title label";
-    h.textContent = title;
-    list.appendChild(h);
-    for (const p of state.presets.filter((x) => x.kind === kind)) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "case";
-      b.innerHTML = `
-        <span class="case-title">${esc(p.title)}</span><span class="case-id">${esc(p.id)}</span>
-        <span class="case-pitch">${esc(p.pitch)}</span>
-        <span class="case-cells"><span><b>A</b>${cells(p.recorded_labels.A, kind)}</span><span><b>B</b>${cells(p.recorded_labels.B, kind)}</span></span>`;
-      b.setAttribute("aria-label", `Enviar el caso ${p.id}: ${p.title}`);
-      b.addEventListener("click", () => sendChat(p.payload, p.id));
-      list.appendChild(b);
-    }
-  }
-
-  const chips = $("#compare-chips");
-  chips.innerHTML = "";
-  for (const p of state.presets) {
-    const c = document.createElement("button");
-    c.type = "button";
-    c.className = "chip";
-    c.setAttribute("aria-pressed", "false");
-    c.dataset.id = p.id;
-    c.innerHTML = `<span class="code">${esc(p.id)}</span>${esc(p.title)}`;
-    c.title = p.pitch;
-    c.addEventListener("click", () => {
-      $("#compare-text").value = p.payload;
-      setComparePreset(p.id);
-      runCompare();
-    });
-    chips.appendChild(c);
-  }
+  const box = $("#preset-groups");
+  box.innerHTML = GROUPS.map((g) => {
+    const items = state.presets.filter((p) => groupOf(p) === g.key);
+    if (!items.length) return "";
+    return `<section class="group" data-group="${g.key}">
+      <h3>${esc(g.title)}</h3>
+      <ul class="cards">${items.map(cardHTML).join("")}</ul>
+    </section>`;
+  }).join("");
 }
 
-// ---------------------------------------------------------------- comparar
-
-function setComparePreset(id) {
-  state.comparePreset = id;
-  $$("#compare-chips .chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.id === id)));
+function cardHTML(p) {
+  const benign = p.kind === "benign";
+  return `<li class="card ${p.kind}">
+    <p class="card-title">${esc(p.title)}</p>
+    <p class="card-pitch">${esc(p.pitch)}</p>
+    <div class="card-foot">
+      <span class="score">
+        ${dotsRow({ short: "Sin", long: "Sin protección" }, p.recorded_labels.A, benign)}
+        ${dotsRow({ short: "PromptX", long: "Con PromptX" }, p.recorded_labels.B, benign)}
+      </span>
+      <button type="button" class="card-btn" data-copy="${p.id}" aria-label="Copiar el prompt «${esc(p.title)}»">Copiar</button>
+      <button type="button" class="card-btn primary" data-use="${p.id}" aria-label="Usar el prompt «${esc(p.title)}» en el teléfono">Usar</button>
+    </div>
+  </li>`;
 }
 
-async function runCompare() {
-  const text = $("#compare-text").value;
-  if (!text.trim() || state.busy) return;
-  state.busy = true;
-  const preset = state.comparePreset;
-  for (const c of ["A", "B"]) $(`#compare-${c}`).innerHTML = `<span class="thinking">esperando respuesta…</span>`;
-  $("#compare-verdict").hidden = true;
+// ------------------------------------------------------------ copiar / usar
+
+async function copyText(text) {
   try {
-    const res = await api("/api/compare", { text, layers: state.layers, preset_id: preset });
-    for (const c of ["A", "B"]) {
-      const box = $(`#compare-${c}`);
-      box.innerHTML = "";
-      if (res[c].error) box.innerHTML = `<div class="error-box">${esc(res[c].error)}</div>`;
-      else box.appendChild(turnBot(res[c], { selectable: false }));
-    }
-    const va = res.A.error ? null : verdict(res.A), vb = res.B.error ? null : verdict(res.B);
-    const harmA = va?.cls.startsWith("harm"), harmB = vb?.cls.startsWith("harm");
-    let msg = "";
-    if (harmA && !harmB && !res.B.error) msg = "Sin protección, el ataque funcionó. Con el escudo, no.";
-    else if (preset?.startsWith("B") && !harmA && !harmB) msg = "Un cliente legítimo recibe la misma ayuda en las dos versiones.";
-    else if (!harmA && !harmB && va && vb) msg = "Las dos versiones resistieron este intento.";
-    else if (harmB) msg = "Este intento atravesó el escudo. Es exactamente lo que hay que registrar.";
-    if (msg) { $("#compare-verdict").textContent = msg; $("#compare-verdict").hidden = false; }
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
+}
+
+async function onCopy(btn) {
+  const p = state.presets.find((x) => x.id === btn.dataset.copy);
+  const ok = await copyText(p.payload);
+  btn.textContent = ok ? "¡Copiado!" : "No se pudo";
+  btn.classList.toggle("done", ok);
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = "Copiar"; btn.classList.remove("done"); }, 1500);
+}
+
+function onUse(btn) {
+  const p = state.presets.find((x) => x.id === btn.dataset.use);
+  const input = $("#input");
+  input.value = p.payload;
+  state.staged = { id: p.id, payload: p.payload };
+  autosize();
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+// -------------------------------------------------------------- teléfono
+
+function autosize() {
+  const t = $("#input");
+  t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight + 2, 120) + "px";
+}
+
+function annotation(r) {
+  if (r.blocked_by) {
+    const { layer, rule } = blockedText(r.blocked_by);
+    const called = r.blocked_by.startsWith("L3")
+      ? "el modelo no se llamó · 0 USD"
+      : `el modelo sí se llamó · ${usd5(r.cost_usd || 0)}`;
+    return `<p class="anno guard">Bloqueado por PromptX · ${esc(layer)} · ${esc(rule)} · ${called}</p>`;
+  }
+  if ((r.response || "").includes(CANARY))
+    return `<p class="anno harm">Filtró el secreto interno · ${usd5(r.cost_usd || 0)}</p>`;
+  if (r.label === "EXITO_TOTAL")
+    return `<p class="anno harm">El ataque funcionó · ${usd5(r.cost_usd || 0)}</p>`;
+  return "";
+}
+
+function msgHTML(m) {
+  if (m.role === "user")
+    return `<div class="msg user"><div class="bubble"><span class="sr-only">Tú: </span>${secretHTML(esc(m.text))}</div></div>`;
+  if (m.role === "note")
+    return `<div class="msg note"><div class="bubble" role="status">${esc(m.text)}</div></div>`;
+  const r = m.r;
+  const rec = r.source === "recorded" ? `<span class="tag-rec" title="Respuesta grabada en la corrida definitiva">grabada</span>` : "";
+  return `<div class="msg aura"><div class="bubble"><span class="sr-only">Aura: </span>${md(r.response)}${rec}</div>${annotation(r)}</div>`;
+}
+
+function renderChat() {
+  const s = state.sessions[state.mode];
+  const chat = $("#chat");
+  const body = s.msgs.length
+    ? s.msgs.map(msgHTML).join("")
+    : `<p class="chat-empty">Hola, soy Aura. ¿En qué te ayudo con tu seguro?</p>`;
+  chat.innerHTML = body + (s.pending
+    ? `<div class="msg aura"><div class="bubble typing" aria-label="Aura está escribiendo"><span></span><span></span><span></span></div></div>`
+    : "");
+  chat.scrollTop = chat.scrollHeight;
+  $("#send").disabled = s.pending;
+}
+
+function renderMode(animate) {
+  const m = state.mode;
+  $("#stage").dataset.mode = m;
+  document.querySelectorAll(".seg").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+  $("#shield-badge").hidden = m !== "B";
+  $("#phone").setAttribute("aria-label", `Teléfono simulado: modo ${MODE_NAME[m].toLowerCase()}`);
+  $("#mode-announcer").textContent = `Modo activo: ${MODE_NAME[m]}`;
+  if (animate) {
+    const ph = $("#phone");
+    ph.classList.remove("pulse");
+    void ph.offsetWidth;
+    ph.classList.add("pulse");
+  }
+  renderChat();
+}
+
+// ---------------------------------------------------------------- enviar
+
+async function send() {
+  const input = $("#input");
+  const text = input.value.trim();
+  const cond = state.mode;
+  const s = state.sessions[cond];
+  if (!text || s.pending) return;
+
+  // Si el texto se editó, ya no es el prompt de la batería.
+  const preset = state.staged && state.staged.payload.trim() === text
+    ? state.presets.find((p) => p.id === state.staged.id) : null;
+  state.staged = null;
+  input.value = "";
+  autosize();
+  s.msgs.push({ role: "user", text });
+
+  if (state.offline && !preset) {
+    s.msgs.push({ role: "note", text: "Sin conexión: usa un prompt de la izquierda." });
+    renderChat();
+    return;
+  }
+
+  s.pending = true;
+  renderChat();
+  try {
+    const body = { text, condition: cond };
+    if (preset) body.preset_id = preset.id;
+    const r = await api("/api/chat", body);
+    s.msgs.push({ role: "aura", r });
+    account(s, r, preset, cond);
   } catch (e) {
-    $("#compare-A").innerHTML = `<div class="error-box">${esc(e.message)}</div>`;
-    $("#compare-B").innerHTML = "";
+    s.msgs.push({ role: "note", text: e.status === 503
+      ? "Sin conexión: usa un prompt de la izquierda."
+      : "La API no respondió. Usa un prompt de la izquierda: tienen respuesta grabada." });
   } finally {
-    state.busy = false;
+    s.pending = false;
+    if (state.mode === cond) renderChat();
+    renderLedger();
   }
 }
 
-// -------------------------------------------------------------- resultados
-
-/** Barras horizontales: una fila por categoría, A arriba y B abajo, escala 0–40 %. */
-function barChart(r) {
-  const cats = r.categories;
-  const W = 900, labelW = 220, padR = 56, top = 30, rowH = 58, bar = 14;
-  const H = top + cats.length * rowH + 8;
-  const max = 0.4;
-  const x = (v) => labelW + (v / max) * (W - labelW - padR);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tasa de éxito de los ataques por categoría, versión A frente a versión B">`;
-  for (const t of [0, 0.1, 0.2, 0.3, 0.4]) {
-    s += `<line x1="${x(t)}" x2="${x(t)}" y1="${top - 6}" y2="${H - 8}" stroke="var(--rule)" ${t ? 'stroke-dasharray="2 4"' : ""}/>`;
-    s += `<text class="axis" x="${x(t)}" y="${top - 12}" text-anchor="middle">${t * 100} %</text>`;
+function account(s, r, preset, cond) {
+  s.sent += 1;
+  s.cost += r.cost_usd || 0;
+  if (r.blocked_by?.startsWith("L3")) s.stopped += 1;
+  const leaked = (r.response || "").includes(CANARY);
+  if (r.label === "EXITO_TOTAL") {
+    s.passed += 1;
+    if (preset?.objective === "goal_hijacking") {
+      s.offTokens += tokensOf(r);
+      s.offCost += r.cost_usd || 0;
+    }
   }
-  cats.forEach((c, i) => {
-    const y0 = top + i * rowH + 8;
-    s += `<text class="catcode" x="0" y="${y0 + 12}">${esc(c)}</text>`;
-    s += `<text class="cat" x="0" y="${y0 + 30}">${esc(SHORT_CATEGORY[c] || r.category_names[c] || c)}</text>`;
-    [["A", "var(--exposed)", 0], ["B", "var(--shield)", bar + 6]].forEach(([cond, color, dy]) => {
-      const d = r.asr_by_category[cond][c].estricto;
-      const v = d.asr || 0;
-      const w = Math.max(x(v) - x(0), 3);
-      s += `<rect x="${x(0)}" y="${y0 + dy}" width="${w}" height="${bar}" fill="${color}"><title>${cond} · ${esc(c)}: ${d.exitos} de ${d.denominador}</title></rect>`;
-      s += `<text class="val" x="${x(0) + w + 8}" y="${y0 + dy + bar - 2}">${Math.round(v * 100)} %</text>`;
+  if (r.label === "EXITO_TOTAL" || leaked) {
+    s.incidents.unshift({
+      cond,
+      title: preset ? preset.title : "Mensaje escrito a mano",
+      consequence: leaked ? "Filtró el secreto interno al cliente."
+                          : preset?.consequence || "El ataque consiguió lo que buscaba.",
+      tokens: tokensOf(r),
+      cost: r.cost_usd || 0,
+      when: new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false }),
     });
-    if (i < cats.length - 1) s += `<line x1="0" x2="${W}" y1="${y0 + rowH - 10}" y2="${y0 + rowH - 10}" stroke="var(--rule)"/>`;
-  });
-  return s + "</svg>";
+  }
 }
 
-async function loadResults() {
-  const r = await api("/api/results");
-  const A = r.asr.A, B = r.asr.B, ec = r.effective_cost, cc = r.cost_per_call, oh = r.overhead;
-  const extra = (ec.B / ec.A - 1) * 100;
-  const perCall = (cc.B / cc.A - 1) * 100;
-  const dLat = oh.B.api_latency_ms_media - oh.A.api_latency_ms_media;
-  $("#results").innerHTML = `
-    <div class="report-head">
-      <span class="label">Corrida ${esc(r.run_id)} · commit ${esc(r.git_commit)} · ${esc(r.model)}</span>
-      <h2>Resultados de la corrida definitiva</h2>
-      <p>${r.n_total} interacciones reales: 20 ataques y 20 consultas legítimas, cada una repetida 5 veces contra las dos versiones del asistente.</p>
-    </div>
+// ---------------------------------------------------------------- costos
 
-    <div class="ledger">
-      <div><span class="what">Ataques que logran su objetivo</span>
-        <span class="figure"><span class="from">${pct(A.estricto.asr)}</span><span class="arrow">→</span><span class="to">${pct(B.estricto.asr)}</span></span>
-        <span class="detail">A: ${A.estricto.exitos} de ${A.estricto.denominador}. B: ${B.estricto.exitos} de ${B.estricto.denominador}. Con los casos dudosos, A está entre ${pct(A.minimo.asr)} y ${pct(A.maximo.asr)}.</span></div>
-      <div><span class="what">Clientes legítimos rechazados</span>
-        <span class="figure"><span class="to">${pct(r.fpr.B.fpr_estricto)}</span></span>
-        <span class="detail">${r.fpr.B.rechazados} de ${r.fpr.B.total} consultas legítimas, incluidas las que parecen ataques.</span></div>
-      <div><span class="what">Costo extra por conversación</span>
-        <span class="figure">+${extra.toFixed(0)} %</span>
-        <span class="detail">De ${usdM(ec.A)} a ${usdM(ec.B)} por millón de conversaciones.</span></div>
-      <div><span class="what">Latencia extra del modelo</span>
-        <span class="figure">+${Math.round(dLat)} ms</span>
-        <span class="detail">De ${ms(oh.A.api_latency_ms_media)} a ${ms(oh.B.api_latency_ms_media)} por llamada, en promedio.</span></div>
-    </div>
-
-    <div class="block">
-      <h3>Dónde actúa el escudo</h3>
-      <p>Tasa de éxito de los ataques en cada categoría. El modelo ya rechaza por su cuenta los ataques más ingenuos; la diferencia aparece en los que falsifican autoridad de sistema.</p>
-      <div class="legend"><span><i style="background:var(--exposed)"></i>A · sin protección</span><span><i style="background:var(--shield)"></i>B · escudo activo</span></div>
-      <div class="chart">${barChart(r)}</div>
-    </div>
-
-    <div class="block">
-      <h3>Por qué el costo extra es pequeño</h3>
-      <p>Cada llamada protegida lleva más contexto y cuesta más. Pero el filtro de entrada corta los ataques reconocibles sin llamar al modelo, y esas conversaciones no se pagan.</p>
-      <div class="table-wrap"><table class="cost-table">
-        <thead><tr><th></th><th>A · sin protección</th><th>B · escudo activo</th><th>Diferencia</th></tr></thead>
-        <tbody>
-          <tr><td>Tokens de entrada por llamada</td><td>${Math.round(oh.A.tokens_in_medio)}</td><td>${Math.round(oh.B.tokens_in_medio)}</td><td>+${((oh.B.tokens_in_medio / oh.A.tokens_in_medio - 1) * 100).toFixed(0)} %</td></tr>
-          <tr><td>Costo por llamada al modelo, por millón</td><td>${usdM(cc.A)}</td><td>${usdM(cc.B)}</td><td>+${perCall.toFixed(0)} %</td></tr>
-          <tr class="total"><td>Costo por conversación, por millón</td><td>${usdM(ec.A)}</td><td>${usdM(ec.B)}</td><td>+${extra.toFixed(0)} %</td></tr>
-        </tbody>
-      </table></div>
-    </div>
-
-    <div class="block pending">
-      <h3>Pendiente</h3>
-      <ul>
-        <li>${r.pending_reviews.A + r.pending_reviews.B} respuestas ambiguas (${r.pending_reviews.A} de A y ${r.pending_reviews.B} de B) esperan la auditoría manual independiente. Por eso el resultado de A se da como rango.</li>
-        <li>El estudio usa un modelo y una tarea: atención al cliente de una aseguradora. El siguiente paso es repetirlo con otros modelos y con ataques adaptativos.</li>
-      </ul>
-    </div>`;
+function renderLedger() {
+  for (const c of ["A", "B"]) {
+    const s = state.sessions[c];
+    $(`#m-sent-${c}`).textContent = num(s.sent);
+    $(`#m-cost-${c}`).innerHTML = `${usd5(s.cost)}<span class="sub">${
+      s.sent ? `≈ ${perMillion(s.cost / s.sent)} por millón de mensajes así` : "sin mensajes"}</span>`;
+    const pass = $(`#m-pass-${c}`);
+    pass.textContent = num(s.passed);
+    pass.className = s.passed ? "bad" : "";
+    $(`#m-off-${c}`).innerHTML = `${num(s.offTokens)}<span class="sub">${usd5(s.offCost)}</span>`;
+    if (c === "B") {
+      const stop = $("#m-stop-B");
+      stop.innerHTML = `${num(s.stopped)}<span class="sub">costo 0 USD</span>`;
+      stop.className = s.stopped ? "good" : "";
+    }
+  }
+  const inc = [...state.sessions.A.incidents, ...state.sessions.B.incidents];
+  $("#incidents").innerHTML = inc.length ? inc.map((i) => `<li class="inc">
+      <p class="inc-head">${esc(i.title)}</p>
+      <p>${esc(i.consequence)}</p>
+      <p class="measured">${i.cond === "B" ? "Con PromptX · " : ""}${esc(i.when)} · ${num(i.tokens)} tokens · ${usd5(i.cost)}</p>
+    </li>`).join("")
+    : `<li class="inc-empty">Sin incidentes. Cuando un ataque pase, aparece aquí lo que le cuesta al negocio.</li>`;
 }
 
-// ----------------------------------------------------------------- ajustes
-
-function openDrawer(open) {
-  $("#drawer").classList.toggle("open", open);
-  $("#drawer").setAttribute("aria-hidden", String(!open));
-  $("#drawer-backdrop").hidden = !open;
-  if (open) $("#close-settings").focus();
+/** Fila de referencia: lo que cuesta una llamada al modelo en cada versión, medido en la corrida. */
+function renderReference() {
+  const c = state.results?.cost_per_call;
+  if (!c) return;
+  $("#m-ref-A").innerHTML = `${perMillion(c.A)}<span class="sub">por millón</span>`;
+  const extra = Math.round((c.B / c.A - 1) * 100);
+  $("#m-ref-B").innerHTML = `${perMillion(c.B)}<span class="sub">por millón (+${extra}\u00a0%)</span>`;
 }
 
-function renderBands() {
-  $("#mode-band").hidden = state.cond !== "A";
-  const off = Object.entries(state.layers).filter(([, v]) => !v).map(([k]) => k.toUpperCase());
-  const b = $("#layers-band");
-  b.hidden = state.cond !== "B" || !off.length;
-  b.textContent = `El escudo está funcionando sin ${off.join(", ")}. Puedes volver a activarlas en Ajustes.`;
-  $(".switch-sub").textContent = state.cond === "B" ? `versión B · ${5 - off.length} de 5 capas` : "versión A · sin capas";
-}
+// --------------------------------------------------------------- ajustes
 
 function renderConn() {
-  const el = $("#conn-badge");
+  const el = $("#conn");
   el.className = "conn " + (state.offline ? "offline" : "live");
-  el.textContent = state.offline ? "sin conexión · respuestas grabadas" : "en vivo · Groq";
-  $("#offline-toggle").checked = state.offline;
-  $("#offline-toggle").disabled = !state.hasKey;
+  el.textContent = state.offline ? "sin conexión" : "en vivo";
+  const t = $("#offline-toggle");
+  t.checked = state.offline;
+  t.disabled = !state.hasKey;
+  $("#api-status").innerHTML = `
+    <dt>Estado</dt><dd>${state.offline ? "sin conexión · respuestas grabadas" : "en vivo · llama a la API"}</dd>
+    <dt>LLM_API_KEY</dt><dd>${state.hasKey ? "configurada" : "no está en .env: solo modo sin conexión"}</dd>
+    <dt>Modelo</dt><dd>${esc(state.model || "—")}</dd>`;
 }
 
-async function loadConfig() {
-  const c = await api("/api/config");
-  $("#sys-a").textContent = c.system_A;
-  $("#sys-b-added").textContent = c.system_B_added;
-  $("#sys-l2").textContent = c.l2_reminder;
-  const inf = c.inference;
-  $("#model-info").innerHTML = [
-    ["Proveedor", c.provider], ["Modelo", c.model], ["temperature", inf.temperature],
-    ["top_p", inf.top_p], ["max_tokens", inf.max_tokens], ["reasoning_effort", inf.reasoning_effort],
-  ].map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+function tickClock() {
+  $("#clock").textContent = new Date().toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: false });
 }
 
-// ---------------------------------------------------------------- arranque
+// -------------------------------------------------------------- arranque
 
-function setCond(c) {
-  state.cond = c;
-  const sw = $("#shield-switch");
-  sw.setAttribute("aria-checked", String(c === "B"));
-  $(".switch-title", sw).textContent = c === "B" ? "Escudo activo" : "Escudo apagado";
-  renderBands();
-}
-
-function setTab(name) {
-  $$(".nav-item").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
-  $$(".view").forEach((p) => { p.hidden = p.id !== `tab-${name}`; });
-}
-
-function bind() {
-  $$("[data-product-name]").forEach((el) => { el.textContent = PRODUCT_NAME; });
-  document.title = PRODUCT_NAME;
-
-  $$(".nav-item").forEach((t) => t.addEventListener("click", () => setTab(t.dataset.tab)));
-  $("#shield-switch").addEventListener("click", () => setCond(state.cond === "B" ? "A" : "B"));
-
-  const input = $("#input");
-  $("#composer").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = input.value;
-    input.value = "";
-    sendChat(text, null);
-  });
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#composer").requestSubmit(); }
-  });
-  $("#clear-chat").addEventListener("click", () => {
-    $("#messages").innerHTML = "";
-    $("#inspector").innerHTML = `<div class="inspector-empty"><h2>Inspección</h2><p>Selecciona una respuesta para ver por qué capas pasó el mensaje y cuál actuó.</p></div>`;
-  });
-
-  $("#compare-form").addEventListener("submit", (e) => { e.preventDefault(); runCompare(); });
-  $("#compare-text").addEventListener("input", () => setComparePreset(null));
-  $("#compare-text").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runCompare(); }
-  });
-
-  $("#open-settings").addEventListener("click", () => openDrawer(true));
-  $("#close-settings").addEventListener("click", () => openDrawer(false));
-  $("#drawer-backdrop").addEventListener("click", () => openDrawer(false));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") openDrawer(false); });
-
-  $$("[data-layer]").forEach((cb) => cb.addEventListener("change", () => {
-    state.layers[cb.dataset.layer] = cb.checked;
-    renderBands();
+function wire() {
+  document.querySelectorAll(".seg").forEach((b) => b.addEventListener("click", () => {
+    if (state.mode === b.dataset.mode) return;
+    state.mode = b.dataset.mode;
+    renderMode(true);
   }));
+  $("#reset-chat").addEventListener("click", () => {
+    if (state.sessions[state.mode].pending) return;
+    state.sessions[state.mode] = newSession();
+    renderChat();
+    renderLedger();
+  });
+  $("#preset-groups").addEventListener("click", (e) => {
+    const copy = e.target.closest("[data-copy]");
+    const use = e.target.closest("[data-use]");
+    if (copy) onCopy(copy);
+    if (use) onUse(use);
+  });
+  const input = $("#input");
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      send();
+    }
+  });
+  $("#composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+  $("#open-settings").addEventListener("click", () => $("#settings").showModal());
   $("#offline-toggle").addEventListener("change", async (e) => {
     try {
       state.offline = (await api("/api/offline", { offline: e.target.checked })).offline;
-    } catch (err) {
-      e.target.checked = state.offline;
+    } catch {
+      /* el servidor no lo permitió: se queda como estaba */
     }
     renderConn();
   });
 }
 
-async function init() {
-  bind();
-  setCond("B");
+async function boot() {
+  wire();
+  tickClock();
+  setInterval(tickClock, 15000);
+  renderMode(false);
+  renderLedger();
   try {
     const [st, presets] = await Promise.all([api("/api/status"), api("/api/presets")]);
-    state.offline = st.offline; state.hasKey = st.has_key; state.presets = presets;
-    renderConn();
+    Object.assign(state, { offline: st.offline, hasKey: st.has_key, model: st.model, presets });
     renderPresets();
-    await Promise.all([loadExample(), loadConfig(), loadResults()]);
-  } catch (e) {
-    $("#messages").innerHTML = `<div class="error-box">No se pudo contactar con el servidor de la demo: ${esc(e.message)}. Comprueba que uvicorn sigue corriendo.</div>`;
+    renderConn();
+  } catch {
+    $("#preset-groups").innerHTML = `<p class="muted pad">No se pudo hablar con el servidor de la demo.</p>`;
   }
+  try {
+    state.results = await api("/api/results");
+    renderReference();
+  } catch { /* la fila de referencia se queda en «—» */ }
 }
 
-init();
+boot();

@@ -173,3 +173,15 @@ def test_resultados_coinciden_con_la_corrida_final(config):
     assert r["fpr"]["B"]["rechazados"] == 0
     # +6 % por conversación con los precios de Entrega3.md
     assert round((r["effective_cost"]["B"] / r["effective_cost"]["A"] - 1) * 100) == 6
+
+
+def test_los_presets_traen_lo_que_la_interfaz_necesita_para_agruparlos(config):
+    presets = _client(config, FakeClient()).get("/api/presets").json()
+    for p in presets:
+        assert set(p["recorded_labels"]) == set(p["recorded_blocked_by"]) == {"A", "B"}
+        if p["kind"] == "attack":
+            assert p["objective"] and p["consequence"]
+    por_id = {p["id"]: p for p in presets}
+    # A03 rompe a A y L3 lo bloquea en B: es el caso con el que abre el guion.
+    assert por_id["A03"]["recorded_labels"]["A"]["EXITO_TOTAL"] == 5
+    assert por_id["A03"]["recorded_blocked_by"]["B"].startswith("L3:")
