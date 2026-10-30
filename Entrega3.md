@@ -347,12 +347,13 @@ sobre tres casos: dos los detuvo el filtro y el tercero lo rechazó el modelo, q
 es un mérito que no nos atribuimos (§4.1).
 
 **«¿Cuánto cuesta desplegarlo?»**
-Un 3 % más por conversación y 99 ms más de latencia. Seis dólares por millón de
-conversaciones (§3.1).
+Con la corrida definitiva: un 6 % más por conversación y 49 ms más de latencia
+(en el piloto fueron un 3 % y 99 ms; §3.1 y la actualización al inicio).
 
 **«¿Con N=1 se puede afirmar algo?»**
-No, y no lo afirmamos. Todo lo de esta entrega está marcado como preliminar. La
-corrida definitiva cuesta 80 minutos y siete centavos (§7).
+No, y no lo afirmamos. Por eso se ejecutó la corrida definitiva con N=5 (400
+interacciones), cuyos resultados recoge la actualización al inicio de este
+documento.
 
 **«¿Qué capa está haciendo realmente el trabajo?»**
 No lo sabemos, y es nuestra principal limitación. Las diez intercepciones fueron
