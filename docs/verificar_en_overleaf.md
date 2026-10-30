@@ -1,5 +1,49 @@
 # Puntos a verificar al compilar en Overleaf
 
+## Versión final (revisión para el jurado, 30-oct-2026) — empezar aquí
+
+Tampoco en esta revisión hubo LaTeX en la máquina de desarrollo, así que **compilar
+y revisar el PDF es tarea del equipo**. La revisión estática pasó: entornos
+equilibrados, llaves equilibradas, todo `\ref` con su `\label` y todo `\cite` con su
+`\bibitem`. El artículo final ya **no** incluye `docs/seccion_IV_piloto.tex`: solo
+hace `\input{docs/anexo_A}` y `\input{docs/anexo_B}`.
+
+Compilar **dos veces** (para referencias) y comprobar:
+
+1. **Delimitadores de L1** (III-D, Fig. 3): deben verse como
+   `<<<USER_DATA_a91f>>>` y `<<</USER_DATA_a91f>>>`, con tres signos `<` y `>`
+   separados, **no** como `«<USER_DATA»>`. Ahora se componen con las macros
+   `\udopen` y `\udclose` del preámbulo.
+2. **Fig. 3** (arquitectura de B, a toda página): los delimitadores van en `\tiny`
+   dentro de la caja L1. Comprobar que no desbordan la caja ni pisan el nodo LLM.
+3. **Listing 1**: sin el carácter `␣` en las cadenas (`showstringspaces=false`) y con
+   `validación` con tilde (`literate={ó}{{\'o}}1`). Si `literate` diera error con
+   `inputenc`, quitar esa opción y dejar `validacion` sin tilde.
+4. **Fig. 5** (destino de los 100 intentos) y **Fig. 6** (ASR por categoría, con
+   rayado para lo pendiente): requieren `\usetikzlibrary{patterns}` (ya está). Ver
+   que las etiquetas `6 pend.`, `0--10`, `20--35` y `0--5` no se solapen.
+5. **Tablas nuevas o cambiadas**: "Análisis a nivel de ataque" (con
+   `\multicolumn`), Tabla de ASR por condición (columnas Estimación / Sensibilidad /
+   IC), tabla por categoría, Tabla 13 (piloto frente a definitiva, columna derecha
+   más ancha) y la tabla de beneficios. Buscar *overfull hbox* en el log.
+6. **Tabla por ataque** (`table*`, a toda página): seis columnas; comprobar que cabe
+   en el ancho de texto.
+7. **Encabezado**: los dos `[correo]` siguen pendientes de completar (ver informe de
+   la revisión) y el de Diego va en una línea propia para que no se trunque.
+8. **Bibliografía**: dos entradas nuevas (`refKang`, `refLP`) al final de la lista.
+   No debe aparecer ningún `[?]`.
+9. **Anexo A**: la frase sobre A20 ahora explica la nota en lugar de remitir a una
+   nota inexistente.
+
+### Guardar el PDF
+
+Guardar el PDF final como **`articulo_final.pdf` en la raíz** del repositorio (junto a
+`articulo_entrega2.pdf`) y añadir el enlace en la tabla "A dónde ir" del README.
+
+---
+
+## Histórico: notas de la entrega intermedia
+
 No pude compilar en esta máquina (no hay pdflatex, lualatex ni tectonic). La
 revisión fue estática: escapes, llaves, entornos, `\ref` sin `\label`. Todo eso
 está correcto. Lo que sigue son los puntos donde, pese a la revisión, es más
