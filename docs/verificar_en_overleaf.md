@@ -28,8 +28,8 @@ Compilar **dos veces** (para referencias) y comprobar:
    más ancha) y la tabla de beneficios. Buscar *overfull hbox* en el log.
 6. **Tabla por ataque** (`table*`, a toda página): seis columnas; comprobar que cabe
    en el ancho de texto.
-7. **Encabezado**: los dos `[correo]` siguen pendientes de completar (ver informe de
-   la revisión) y el de Diego va en una línea propia para que no se trunque.
+7. **Encabezado**: los correos de Laura y David van en la primera línea y el de Diego
+   en una propia; comprobar que ninguno se trunca.
 8. **Bibliografía**: dos entradas nuevas (`refKang`, `refLP`) al final de la lista.
    No debe aparecer ningún `[?]`.
 9. **Anexo A**: la frase sobre A20 ahora explica la nota en lugar de remitir a una

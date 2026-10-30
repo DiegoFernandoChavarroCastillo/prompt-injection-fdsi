@@ -75,7 +75,7 @@ Commits de la revisión (en orden):
 | 23 | **HECHO** | Limitación nueva en V-E (rol `user`; A′); III-C «un patrón ingenuo frecuente en prototipos». Nota: con la *model card*, una línea base con rol de sistema sería probablemente *menos* vulnerable, así que el ASR de A puede sobrestimar el de una línea base realista; así se redactó. |
 | 24 | **HECHO** | V-E incluye el análisis por ataque, A20 y la calibración de L5. |
 | 25 | **HECHO** | VII: condición A′ junto a la ablación. |
-| 26 | **HECHO** (confirmar) | El correo completo `diego.chavarro-c@mail.escuelaing.edu.co` es el autor de los commits y el *tagger* de las cuatro etiquetas anotadas del repositorio. Ahora va en una línea propia para que no se trunque. Los otros dos siguen como `[correo]`: R4. |
+| 26 | **HECHO** (confirmar) | El correo completo `diego.chavarro-c@mail.escuelaing.edu.co` es el autor de los commits y el *tagger* de las cuatro etiquetas anotadas del repositorio. Ahora va en una línea propia para que no se trunque. Los de Laura y David los proporcionó el equipo el 30-oct-2026 y ya están en el encabezado (R4 resuelto). |
 | 27 | **NO APLICA** / **REQUIERE HUMANO** | No aparece «Pinzón» en ningún archivo. «Laura Alejandra Venegas Piraban», «David Palacios» y «Diego Fernando Chavarro» son idénticos en artículo, README, Entregables y Entrega3. No se añadieron tildes: R5. |
 | 28 | **HECHO** | «F. Aguilera» → «F. Aguilera-Martínez» (verificado en arXiv:2505.01177). |
 | 29 | **HECHO** (anotado) | «Accessed: Oct. 30, 2026.» No se consultó la página de OWASP en esta sesión: se usó la fecha de hoy, como permiten las instrucciones. |
@@ -195,7 +195,7 @@ git ls-files | grep -x .env   → sin salida (exit 1): no versionado
 - **R3.** **Sondeo con allam-2-7b**: si existe su registro, versionarlo como evidencia
   exploratoria y precisar los éxitos parciales; si no, decidir si se mantiene el párrafo de
   V-B (hoy marcado como exploración informal) o se elimina.
-- **R4.** Completar los **dos correos** `[correo]` del encabezado (Laura y David).
+- ~~**R4.** Completar los dos correos del encabezado~~ — **resuelto** el 30-oct-2026.
 - **R5.** Confirmar la grafía de **«Piraban»** (¿«Pirabán»?) y aplicarla en todos los
   documentos si cambia.
 - **R6.** Verificar si la rúbrica del curso pide **«Palabras clave»** en lugar de «Index
