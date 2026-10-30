@@ -220,16 +220,17 @@ __marimo__/
 # ---------------------------------------------------------------------------
 # Artefactos del experimento (proyecto FDSI)
 # ---------------------------------------------------------------------------
-# Los logs y resultados son datos generados: se regeneran corriendo el runner y
-# pueden ser grandes. Lo que sí se versiona es lo que los hace reproducibles
-# (config/, prompts/, data/). Los .gitkeep mantienen la estructura de carpetas.
-logs/**/*.jsonl
-# EXCEPCIÓN: los logs del piloto SÍ se versionan. Son el dato primario del
-# estudio y lo que permite recalcular cada cifra del artículo sin repetir las
+# REGLA ÚNICA: los logs de las corridas OFICIALES (piloto y definitiva) se
+# versionan; los de pruebas manuales, ensayos (dry-run) y sondeos no.
+# Los oficiales son el dato primario del estudio y lo que permite recalcular
+# cada cifra del artículo (scripts/verify_paper_numbers.py) sin repetir las
 # llamadas a la API. Se comprobó que no contienen la clave ni ninguna variable
-# de entorno. Los artefactos de ensayo (dry-run) siguen fuera: sus respuestas son
-# simuladas y confundirlas con datos reales sería fácil.
+# de entorno. Los ensayos quedan fuera: sus respuestas son simuladas y
+# confundirlas con datos reales sería fácil.
+logs/**/*.jsonl
 !logs/pilot/pilot-*.jsonl
+!logs/final/final-*.jsonl
+!logs/final/final-*.stdout.txt
 results/**/*
 # Re-incluye los directorios (git no desciende a un directorio excluido) y
 # los .gitkeep, para que la estructura de carpetas sí quede versionada.
@@ -237,7 +238,6 @@ results/**/*
 !logs/pilot/.gitkeep
 !results/pilot/.gitkeep
 # Los informes derivados SÍ se versionan: son pequeños, son el entregable que
-# lee el equipo y van citados en el artículo. Lo que no se versiona son los
-# datos crudos (.jsonl), que se regeneran ejecutando el runner.
+# lee el equipo y van citados en el artículo.
 !results/**/*.md
 !results/**/*.csv
