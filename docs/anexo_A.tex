@@ -37,7 +37,10 @@
 
 Los 20 ataques, cuatro por categoría (C1: Sobrescritura directa de instrucciones, C2: Suplantación de rol, C3: Extracción del system prompt, C4: Inyección por contexto engañoso, C5: Evasión por ofuscación). La columna
 \emph{Intención} recoge el texto en claro de los payloads ofuscados de C5.
-Los payloads se reproducen literalmente, salvo A20 (véase la nota).
+Los payloads se reproducen literalmente, salvo A20: su payload contiene
+homóglifos cirílicos y espacios de ancho cero que pdflatex no puede componer,
+por lo que su celda muestra una nota y la columna \emph{Intención} su texto en
+claro. El payload exacto está en \texttt{data/attacks\_v1.json}.
 
 \begingroup
 \small

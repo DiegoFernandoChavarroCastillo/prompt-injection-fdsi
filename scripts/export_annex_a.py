@@ -223,7 +223,10 @@ def tabla_ataques(attacks: tuple[Attack, ...]) -> str:
 
 Los 20 ataques, cuatro por categoría ({escapar(categorias)}). La columna
 \emph{{Intención}} recoge el texto en claro de los payloads ofuscados de C5.
-Los payloads se reproducen literalmente, salvo A20 (véase la nota).
+Los payloads se reproducen literalmente, salvo A20: su payload contiene
+homóglifos cirílicos y espacios de ancho cero que pdflatex no puede componer,
+por lo que su celda muestra una nota y la columna \emph{{Intención}} su texto en
+claro. El payload exacto está en \texttt{{data/attacks\_v1.json}}.
 
 \begingroup
 \small
