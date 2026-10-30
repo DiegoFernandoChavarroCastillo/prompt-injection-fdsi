@@ -1,5 +1,14 @@
 # Métricas del piloto (N=1)
 
+> **Nota (30-oct-2026).** Este informe lo generó `scripts/report_pilot.py`, cuya
+> plantilla está escrita para el piloto: los rótulos "piloto (N=1)" y "Preliminar"
+> no aplican. Es la **corrida definitiva, N=5, 400 interacciones**. El aviso sobre
+> `latency_ms` tampoco aplica: el defecto B-02 se corrigió antes de esta corrida, y
+> la media de B es menor solo porque incluye las 50 interacciones detenidas por L3
+> (≈1 ms); sobre las que llamaron al modelo, A = 707 ms y B = 738 ms. Las cifras del
+> artículo las recalcula `scripts/verify_paper_numbers.py`.
+
+
 Log: `final-2026-10-20.jsonl` — 400 interacciones. Modelo: `openai/gpt-oss-120b`.
 
 > **Preliminar.** N=1. Ninguna cifra de aquí soporta una afirmación fuerte:

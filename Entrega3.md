@@ -13,11 +13,35 @@ Laura Alejandra Venegas Piraban · David Palacios · Diego Fernando Chavarro
 > ## La propuesta en una frase
 >
 > **Blindar un asistente conversacional contra inyección de instrucciones cuesta
-> un 3 % más por conversación, no rompe ninguna consulta legítima, y en nuestra
-> corrida piloto detuvo el 100 % de los ataques que habían logrado atravesar la
-> versión sin proteger.**
+> un 6 % más por conversación, no bloquea ninguna consulta legítima, y en la
+> corrida definitiva (400 interacciones) ningún ataque atravesó la versión
+> protegida, frente a 11 de cada 100 contra la versión sin proteger.**
 
 ---
+
+> ### Actualización con la corrida definitiva (30-oct-2026)
+>
+> Este documento se escribió con la **corrida piloto** (N=1, 18-sep-2026). Las
+> secciones 3 y 4 conservan sus cifras como registro histórico. Las cifras que
+> valen son las de la **corrida definitiva** (N=5, 400 interacciones, 20-oct-2026),
+> recalculadas por `scripts/verify_paper_numbers.py` y recogidas en el artículo:
+>
+> | | Sin defensa | Con las 5 capas |
+> |---|---|---|
+> | ASR por intento | **11 %** (11/100; sensibilidad 9–15 %) | **0 %** (0/100; < 3,7 % al 95 %) |
+> | Ataques que vencen (de 20) | 2 (A03, A13) | 0 (< 16,1 % al 95 %) |
+> | Significancia | por intento p ≈ 0,003; **por ataque p ≈ 0,49** | |
+> | FPR | 0 % (0–4 %) | 0 % (0–5 %) |
+> | Tokens de entrada por llamada | 673 | 1 137 (+69 %) |
+> | Latencia de la llamada al modelo | 685 ms | 734 ms (**+49 ms**) |
+> | Costo por conversación (mismo método y precios que §3.1) | 0,000170 USD | 0,000181 USD (**+6 %**) |
+> | Costo por llamada al modelo | 0,000170 USD | 0,000241 USD (+41 %) |
+> | Pruebas automáticas | 206 | |
+>
+> Dos matices que el jurado puede pedir: la vulnerabilidad de la línea base descansa
+> en **dos ataques** que imitan marcadores de sistema o de plantilla de chat, y los
+> detiene una sola regla de L3; el aporte de las demás capas queda como hipótesis
+> (A10 es el único indicio). Ver [docs/defensa_jurado.md](docs/defensa_jurado.md).
 
 ## 1. El problema que resolvemos
 
@@ -75,7 +99,7 @@ propiedad arquitectónica, no una promesa.
 Aquí están todos los números, sin adornos. El argumento no es que sea barato de
 casualidad: es que **medimos el costo y resultó marginal**.
 
-### 3.1 Costo de operación
+### 3.1 Costo de operación (cifras del piloto; ver la actualización al inicio)
 
 | | Sin defensa | Con las 5 capas | Diferencia |
 |---|---|---|---|
@@ -131,7 +155,7 @@ verificable en el repositorio:
 | Sesiones de trabajo | 2 días |
 | *Commits* | 49 |
 | Código de producción (`src/`) | 3 012 líneas |
-| Pruebas automáticas | **183**, ninguna omitida |
+| Pruebas automáticas | **183** en la entrega intermedia (**206** en la versión final), ninguna omitida |
 | Líneas de pruebas | 2 712 |
 | **Proporción pruebas / código** | **0,90** |
 | Documentación versionada | 3 657 líneas |
@@ -159,7 +183,7 @@ nuestras cifras son defendibles:
 
 ## 4. Lo que se gana
 
-### 4.1 Eficacia
+### 4.1 Eficacia (cifras del piloto; ver la actualización al inicio)
 
 | | Sin defensa | Con las 5 capas |
 |---|---|---|
@@ -181,7 +205,7 @@ el jurado la va a pedir:
   variabilidad del modelo**, y de hecho ese mismo ataque falló contra la versión
   sin proteger en una corrida anterior.
 
-### 4.2 Cero fricción para el cliente legítimo
+### 4.2 Cero fricción para el cliente legítimo (cifras del piloto)
 
 | | Sin defensa | Con las 5 capas |
 |---|---|---|
@@ -237,7 +261,7 @@ python scripts/report_pilot.py logs/pilot/pilot-2026-09-18.jsonl
   criptográfica, reutilizable para evaluar cualquier otro asistente.
 - **Dos capas de código independientes del modelo** (L3 y L5), trasladables a otro
   proveedor sin reescribirlas.
-- **Un banco de 183 pruebas** que no consume cuota de API.
+- **Un banco de 206 pruebas** que no consume cuota de API.
 - **Una metodología replicable**, con el proceso completo publicado, incluidas las
   decisiones y los incidentes.
 
@@ -302,7 +326,7 @@ Preferimos decirlo nosotros antes de que lo pregunte el jurado.
 > documenta apenas funcionan contra un modelo de 2026 incluso sin defensas de
 > aplicación. Eso reduce el margen donde podemos demostrar utilidad, y lo
 > reportamos tal cual. También indica dónde hay que buscar: los dos ataques que sí
-> funcionaron **no persuaden al modelo, falsifican autoridad de sistema**. Ahí está
+> funcionaron **no persuaden al modelo: imitan marcadores de formato del sistema o de la plantilla de chat**. Ahí está
 > la próxima generación de ataques, y ahí es donde importa L1.
 
 ---
@@ -323,12 +347,13 @@ sobre tres casos: dos los detuvo el filtro y el tercero lo rechazó el modelo, q
 es un mérito que no nos atribuimos (§4.1).
 
 **«¿Cuánto cuesta desplegarlo?»**
-Un 3 % más por conversación y 99 ms más de latencia. Seis dólares por millón de
-conversaciones (§3.1).
+Con la corrida definitiva: un 6 % más por conversación y 49 ms más de latencia
+(en el piloto fueron un 3 % y 99 ms; §3.1 y la actualización al inicio).
 
 **«¿Con N=1 se puede afirmar algo?»**
-No, y no lo afirmamos. Todo lo de esta entrega está marcado como preliminar. La
-corrida definitiva cuesta 80 minutos y siete centavos (§7).
+No, y no lo afirmamos. Por eso se ejecutó la corrida definitiva con N=5 (400
+interacciones), cuyos resultados recoge la actualización al inicio de este
+documento.
 
 **«¿Qué capa está haciendo realmente el trabajo?»**
 No lo sabemos, y es nuestra principal limitación. Las diez intercepciones fueron
@@ -343,13 +368,13 @@ futuro (§7).
 |---|---|
 | **Problema** | Riesgo #1 de OWASP para aplicaciones con modelos de lenguaje; >90 % de éxito reportado en sistemas sin protección |
 | **Propuesta** | Cinco capas de defensa, dos de ellas código determinista, sin cambiar el modelo |
-| **Eficacia (preliminar)** | ASR del 15 % al **0 %**; ninguno de los 3 ataques que pasaban volvió a funcionar |
-| **Fricción** | **0 %** de falsos positivos, incluidas 5 consultas trampa |
-| **Costo de operación** | **+3 %** por conversación; **+99 ms** de latencia |
+| **Eficacia (corrida definitiva)** | ASR del 11 % (9–15 %) al **0 %**; significativo por intento (p ≈ 0,003), no por ataque (p ≈ 0,49) |
+| **Fricción** | **0 %** de falsos positivos (0–5 % en la sensibilidad), incluidas 5 consultas trampa × 5 repeticiones |
+| **Costo de operación** | **+6 %** por conversación; **+49 ms** de latencia |
 | **Costo del estudio** | **0,032 USD** equivalentes; 0 USD reales |
 | **Garantía metodológica** | Batería preregistrada, regla antisesgo verificada por software, desviaciones publicadas |
-| **Reproducible** | 183 pruebas, 4 etiquetas de trazabilidad, cada cifra recalculable con un comando |
-| **Estado** | Preliminar (N=1). Corrida definitiva: 80 minutos y 0,07 USD |
+| **Reproducible** | 206 pruebas, 4 etiquetas de trazabilidad, cada cifra recalculable con `scripts/verify_paper_numbers.py` |
+| **Estado** | Corrida definitiva (N=5) ejecutada el 20-oct-2026 sin errores; artículo final revisado |
 
 ---
 

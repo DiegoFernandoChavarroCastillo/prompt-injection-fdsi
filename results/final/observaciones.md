@@ -1,5 +1,12 @@
 # Observaciones del piloto (N=1)
 
+> **Nota (30-oct-2026).** Generado por `scripts/report_pilot.py` con la plantilla
+> del piloto: es la **corrida definitiva (N=5, 400 interacciones)**, no el piloto. El
+> aviso final sobre `latency_ms` no aplica a esta corrida (B-02 ya estaba corregido),
+> y los 15 casos "pendientes de decisión" siguen sin `label_manual`: el artículo los
+> resuelve con el criterio preespecificado y reporta cotas.
+
+
 > **Descriptivas, no conclusiones.** Con una sola repetición por prompt no
 > se puede distinguir un resultado estable de una casualidad.
 

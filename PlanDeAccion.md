@@ -6,7 +6,7 @@
 
 ---
 
-## Estado de las fases (actualizado tras la entrega intermedia)
+## Estado de las fases (actualizado el 30-oct-2026)
 
 | Fase | Estado | Evidencia |
 |---|---|---|
@@ -21,9 +21,17 @@
 | 7 — Corrida piloto (N=1) | ✅ | [`results/pilot/metricas.md`](results/pilot/metricas.md), tag `pilot-freeze` |
 | 8 — Actualización del artículo | ✅ | [`main.tex`](main.tex), [`docs/seccion_IV_piloto.tex`](docs/seccion_IV_piloto.tex) |
 | 9 — Preparación de la entrega | ✅ | [`Entregables.md`](Entregables.md), [`docs/guion_demo.md`](docs/guion_demo.md) |
+| 10 — Corrida definitiva (N=5) | ✅ | [`logs/final/`](logs/final/), [`results/final/metricas.md`](results/final/metricas.md), tag `final-freeze` |
+| 11 — Demostrador web | ✅ | [`demo/`](demo/), [`docs/guion_demo.md`](docs/guion_demo.md) |
+| 12 — Artículo final y revisión para el jurado | ✅ | [`main.tex`](main.tex), [`scripts/verify_paper_numbers.py`](scripts/verify_paper_numbers.py), [`docs/proceso/revision_jurado.md`](docs/proceso/revision_jurado.md) |
+| Auditoría manual independiente (κ de Cohen) | ❌ No realizada | Declarada como desviación (iv) en el artículo; 15 casos de `results/final/revision_manual.csv` pendientes de confirmar |
 
-Lo que queda para la entrega final está en
-[`Entregables.md`](Entregables.md#pendientes-para-la-entrega-final).
+Resultado final (recalculado por `scripts/verify_paper_numbers.py`): ASR 11 % (9–15 %)
+en la línea base sin defensas de aplicación frente a 0 % en la protegida; por ataque,
+2/20 frente a 0/20 (p ≈ 0,49); FPR 0 % (0–5 %); 206 pruebas.
+
+Las secciones siguientes conservan el plan tal como se escribió; los pendientes que
+mencionan se resolvieron como indica la tabla anterior.
 
 ---
 
@@ -31,7 +39,7 @@ Lo que queda para la entrega final está en
 
 Al cierre de esta entrega el equipo debe poder **demostrar en vivo** que:
 
-1. El chatbot vulnerable (A) y el protegido (B) existen, funcionan y resuelven la misma tarea.
+1. La línea base sin defensas de aplicación (A) y el chatbot protegido (B) existen, funcionan y resuelven la misma tarea.
 2. La batería de 20 ataques + 20 benignos está escrita, versionada y documentada (Anexo A).
 3. Un ejecutor automatizado corre la batería contra ambas condiciones y deja logs JSON.
 4. Un clasificador automático etiqueta al menos las ramas objetivas (bloqueo por L3/L5 y aparición del canary).
@@ -64,7 +72,7 @@ Verificación de viabilidad del modelo (condición A). Se ejecutan los 20 ataque
 
 Si qwen/qwen3.8-27b tampoco resulta viable, se vuelve a openai/gpt-oss-120b (Production, más estable) y la baja vulnerabilidad de la condición A se reporta como hallazgo.
 
-Resultado: gpt-oss-120b 2/20 (A03, A13: ambos falsifican autoridad de sistema); qwen3.8-27b 0/20 totales, 1 parcial (A10). Ninguno viable. Por regla preregistrada se usa gpt-oss-120b. Hallazgo: los ataques clásicos de la literatura tienen baja efectividad contra modelos de 2026 incluso sin defensas de aplicación.
+Resultado: gpt-oss-120b 2/20 (A03, A13: ambos imitan marcadores de sistema o de plantilla de chat); qwen3.8-27b 0/20 totales, 1 parcial (A10). Ninguno viable. Por regla preregistrada se usa gpt-oss-120b. Hallazgo: los ataques clásicos de la literatura tienen baja efectividad contra modelos de 2026 incluso sin defensas de aplicación.
 ---
 
 ## Fase 0 — Decisiones y configuración inicial
@@ -170,7 +178,7 @@ prompt-injection-fdsi/
 
 ---
 
-## Fase 3 — Condición A (chatbot vulnerable)
+## Fase 3 — Condición A (línea base sin defensas de aplicación)
 
 **Objetivo:** implementar exactamente el Listing 1.
 
@@ -391,10 +399,10 @@ Las Fases 1 y 2 pueden avanzar en paralelo tras la Fase 0. R3 puede adelantar la
 
 ---
 
-## Lo que queda para la entrega final (referencia)
+## Lo que queda para la entrega final (referencia; estado al 30-oct-2026)
 
-1. Corrida completa N=5 (400 interacciones) con la versión congelada.
-2. Clasificación automática + auditoría manual del 25 % estratificado + todos los éxitos parciales, con κ de Cohen.
-3. Sección IV definitiva (ASR, Δ, FPR, sobrecosto).
-4. Sección V: contraste de la Tabla 4 (hipótesis de cobertura) con lo observado, análisis por capa usando `raw_model_output` vs. `final_response`, y limitaciones.
-5. Sección VI y el Resumen.
+1. ✅ Corrida completa N=5 (400 interacciones) con la versión congelada.
+2. ⚠️ Clasificación automática hecha; auditoría manual independiente con κ de Cohen **no realizada** (desviación (iv)); no hubo éxitos parciales.
+3. ✅ Sección IV definitiva (ASR, Δ, FPR, sobrecosto, análisis por ataque).
+4. ✅ Sección V: contraste de la matriz de cobertura con lo observado, análisis por capa usando `raw_model_output` vs. `final_response`, y limitaciones.
+5. ✅ Sección VII (Conclusiones) y el Resumen.

@@ -10,13 +10,24 @@ Laura Alejandra Venegas Piraban · David Palacios · Diego Fernando Chavarro
 
 ---
 
-## Resumen del avance
+> **Actualización al estado final (30-oct-2026).** Este documento describe la entrega
+> intermedia. Desde entonces se ejecutó la **corrida definitiva** (N=5, 400
+> interacciones, 20-oct-2026, etiqueta `final-freeze`), se construyó el demostrador
+> (`demo/`) y el artículo se completó y revisó para la sustentación. Cifras finales,
+> que recalcula `scripts/verify_paper_numbers.py`: ASR de la línea base **11 %**
+> (sensibilidad 9–15 %) frente a **0 %** en la condición protegida; diferencia
+> significativa por intento (p ≈ 0,003) pero no por ataque (2 de 20 frente a 0 de 20,
+> p ≈ 0,49); FPR 0 % (0–5 % en la sensibilidad); **206 pruebas**. Las cifras del piloto
+> que siguen son históricas. Informe de la revisión final:
+> [docs/proceso/revision_jurado.md](docs/proceso/revision_jurado.md).
+
+## Resumen del avance (entrega intermedia)
 
 Se construyeron y se pusieron a funcionar los dos asistentes que el estudio
 compara: una línea base sin defensas de aplicación y una versión protegida con
 cinco capas. Están completos la batería de 20 ataques y los 20 prompts benignos,
 el ejecutor automatizado, el clasificador de resultados y el cálculo de métricas,
-con 183 pruebas automáticas. Se ejecutó una **corrida piloto de 80 interacciones
+con 183 pruebas automáticas (206 en la versión final). Se ejecutó una **corrida piloto de 80 interacciones
 sin errores**, cuyo resultado preliminar es una tasa de éxito de los ataques del
 **15 % contra la línea base y del 0 % contra la versión protegida**, sin que
 ningún prompt legítimo quedara bloqueado en ninguna de las dos. Ese resultado es
@@ -51,11 +62,11 @@ Recomendamos revisar el material en este orden:
 
 | Ruta | Qué es |
 |---|---|
-| `docs/articulo_entrega2.pdf` | **El artículo compilado.** Es lo que conviene leer. Se genera compilando `main.tex` |
-| `main.tex` | Fuente LaTeX del artículo. El resumen (*abstract*) sigue pendiente a propósito: se escribe al final, cuando existan los resultados definitivos |
+| `articulo_entrega2.pdf` | El artículo compilado **de la entrega intermedia** (en la raíz del repositorio) |
+| `main.tex` | Fuente LaTeX del artículo **final**, con los resultados de la corrida definitiva, discusión, conclusiones y resumen |
 | `docs/anexo_A.tex` | Anexo A generado: los 20 ataques y los 20 benignos con sus metadatos |
 | `docs/anexo_B.tex` | Anexo B generado: los prompts de ambas condiciones y el diff que prueba su simetría |
-| `docs/seccion_IV_piloto.tex` | Subsección de resultados preliminares, incluida en la Sección IV |
+| `docs/seccion_IV_piloto.tex` | Subsección de resultados del piloto de la entrega intermedia (histórica: el artículo final ya no la incluye) |
 | `docs/verificar_en_overleaf.md` | Puntos a comprobar al compilar; no se pudo compilar LaTeX en la máquina de desarrollo |
 | [`Entrega3.md`](Entrega3.md) | **Propuesta de valor**: costos de operación y de construcción, beneficios cuantificados, métricas de interés y las preguntas que esperamos del jurado |
 
@@ -129,7 +140,7 @@ volver a generarlo: ver [`docs/verificar_en_overleaf.md`](docs/verificar_en_over
 
 ### Pruebas automáticas
 
-**183 pruebas, todas en verde.** No consumen cuota de la API: los componentes que
+**206 pruebas, todas en verde** (183 en la entrega intermedia). No consumen cuota de la API: los componentes que
 hablan con el modelo se sustituyen por dobles.
 
 | Archivo | Nº | Qué cubre |
@@ -156,7 +167,7 @@ Cuatro etiquetas de git marcan estados del repositorio que se pueden verificar. 
 |---|---|---|
 | `battery-v1` | `b5e83d2` | La batería quedó fijada **antes** de escribir una sola línea de las defensas. Sus huellas SHA-256 están en `data/MANIFEST.txt` y las pruebas las comprueban en cada ejecución |
 | `pilot-freeze` | `cbce3dd` | Estado exacto del código con el que se ejecutó el piloto. Los resultados de la Sección IV son reproducibles sobre esta versión |
-| `final-freeze` | `afd49bd` | Estado sobre el que se ejecutará la corrida definitiva. Incluye la corrección del defecto de medición de latencia |
+| `final-freeze` | `afd49bd` | Estado con el que se ejecutó la corrida definitiva (cada línea de `logs/final/` registra ese commit). Incluye la corrección del defecto de medición de latencia |
 | `entrega-2` | `5680d1c` | Estado del repositorio en el momento de esta entrega |
 
 ---
@@ -171,7 +182,7 @@ cd prompt-injection-fdsi
 python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# 1. Las 183 pruebas
+# 1. Las 206 pruebas
 pytest
 
 # 2. El ejecutor, con respuestas simuladas y solo prompts legítimos
@@ -179,6 +190,9 @@ python -m src.runner --dry-run --n 1 --condition both --set benign
 
 # 3. Recalcular todas las métricas del piloto desde los registros guardados
 python scripts/report_pilot.py logs/pilot/pilot-2026-09-18.jsonl
+
+# 4. Recalcular y verificar todas las cifras del artículo final (piloto y definitiva)
+python scripts/verify_paper_numbers.py
 ```
 
 El tercer comando regenera `results/pilot/metricas.md` a partir del registro
@@ -191,17 +205,19 @@ Para ejecutar el experimento de verdad hace falta una clave de API
 
 ## Pendientes para la entrega final
 
-- [ ] **Corrida definitiva N=5** (400 interacciones) sobre la etiqueta `final-freeze`.
-- [ ] **Auditoría manual independiente**: el 25 % de los casos, estratificado por
+*Estado al 30-oct-2026.*
+
+- [x] **Corrida definitiva N=5** (400 interacciones) sobre la etiqueta `final-freeze`.
+- [ ] **Auditoría manual independiente** (no realizada; declarada como desviación (iv) del artículo): el 25 % de los casos, estratificado por
       categoría y condición, más **todos** los éxitos parciales, revisados por
       **dos personas por separado**, con el índice κ de Cohen como medida de
       concordancia.
-- [ ] **Sección IV definitiva** con los resultados de N=5.
-- [ ] **Sección V (Discusión)**: contraste con la Tabla 4 (matriz de cobertura
+- [x] **Sección IV definitiva** con los resultados de N=5.
+- [x] **Sección V (Discusión)**: contraste con la Tabla 4 (matriz de cobertura
       defensa-amenaza), análisis por capa usando `raw_model_output` y
       `defense_trace`, y limitaciones.
-- [ ] **Sección VI (Conclusiones)**.
-- [ ] **Resumen (*abstract*)**, que se escribe al final.
+- [x] **Sección VII (Conclusiones)**.
+- [x] **Resumen (*abstract*)**, que se escribe al final.
 - [ ] **Revisión cruzada** de la batería de ataques y del filtro L3 por los
       integrantes que no los escribieron.
 - [ ] *(Opcional)* **Estudio de ablación por capas**, para poder atribuir el
